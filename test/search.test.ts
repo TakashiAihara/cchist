@@ -1,5 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import { makeMatcher, recordTexts, excerpt, type Role } from "../src/commands/search";
+import {
+  makeMatcher,
+  recordTexts,
+  excerpt,
+  groupBySession,
+  type Role,
+  type SearchHit,
+} from "../src/commands/search";
 
 describe("makeMatcher", () => {
   test("substring match is case-insensitive by default", () => {
@@ -99,5 +106,26 @@ describe("excerpt", () => {
 
   test("no trailing ellipsis when context covers the end", () => {
     expect(excerpt("hello world", 6, 50)).toBe("hello world");
+  });
+});
+
+describe("groupBySession", () => {
+  const hit = (id: string): SearchHit => ({ id, ts: null, role: "user", excerpt: "x" });
+
+  test("groups by id and counts hits", () => {
+    const groups = groupBySession([hit("a"), hit("b"), hit("a"), hit("a")]);
+    expect(groups).toEqual([
+      { id: "a", count: 3, hits: [hit("a"), hit("a"), hit("a")] },
+      { id: "b", count: 1, hits: [hit("b")] },
+    ]);
+  });
+
+  test("sorts most hits first", () => {
+    const groups = groupBySession([hit("x"), hit("y"), hit("y")]);
+    expect(groups.map((g) => g.id)).toEqual(["y", "x"]);
+  });
+
+  test("empty input yields no groups", () => {
+    expect(groupBySession([])).toEqual([]);
   });
 });

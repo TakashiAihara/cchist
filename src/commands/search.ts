@@ -1,6 +1,7 @@
 import { basename } from "node:path";
-import { iterFiltered } from "../lib/records";
-import { table, trunc, json } from "../lib/format";
+import { iterFiltered, readRecords } from "../lib/records";
+import { resolveSessionFile } from "../lib/discover";
+import { table, trunc, json, log } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
 type Opts = CommonFilter & {
@@ -11,6 +12,9 @@ type Opts = CommonFilter & {
   thinking?: boolean;
   limit?: string;
   context?: string;
+  session?: string;
+  group?: boolean;
+  hitsPer?: string;
 };
 
 export type Role = "user" | "assistant" | "thinking";
@@ -89,14 +93,42 @@ export function excerpt(text: string, idx: number, ctx: number): string {
   return s;
 }
 
+export type SessionGroup = { id: string; count: number; hits: SearchHit[] };
+
+/** Group hits by session id, most hits first (ties keep first-seen order). */
+export function groupBySession(hits: SearchHit[]): SessionGroup[] {
+  const by = new Map<string, SearchHit[]>();
+  for (const h of hits) {
+    const arr = by.get(h.id);
+    if (arr) arr.push(h);
+    else by.set(h.id, [h]);
+  }
+  return [...by.entries()]
+    .map(([id, hs]) => ({ id, count: hs.length, hits: hs }))
+    .sort((a, b) => b.count - a.count);
+}
+
 export function search(query: string, opts: Opts): void {
   const match = makeMatcher(query, opts);
   const role = opts.role ?? "all";
   const ctx = opts.context ? parseInt(opts.context, 10) : 60;
   const limit = opts.limit ? parseInt(opts.limit, 10) : 50;
 
+  // scope: one session (--session) or every session passing the filters
+  let sources: Iterable<{ file: string; recs: any[] }>;
+  if (opts.session) {
+    const file = resolveSessionFile(opts.session);
+    if (!file) {
+      log(`session not found: ${opts.session}`);
+      process.exit(1);
+    }
+    sources = [{ file, recs: readRecords(file) }];
+  } else {
+    sources = iterFiltered(opts);
+  }
+
   const hits: SearchHit[] = [];
-  outer: for (const { file, recs } of iterFiltered(opts)) {
+  outer: for (const { file, recs } of sources) {
     const id = basename(file, ".jsonl");
     for (const rec of recs) {
       for (const seg of recordTexts(rec, { role, thinking: opts.thinking })) {
@@ -107,6 +139,24 @@ export function search(query: string, opts: Opts): void {
         }
       }
     }
+  }
+
+  if (opts.group) {
+    const groups = groupBySession(hits);
+    if (opts.json) return json(groups);
+    if (!groups.length) {
+      console.error("no matches");
+      return;
+    }
+    const hitsPer = opts.hitsPer ? parseInt(opts.hitsPer, 10) : 2;
+    for (const g of groups) {
+      console.log(`\n\x1b[1m${g.id.slice(0, 8)}\x1b[0m  ${g.count} hit${g.count > 1 ? "s" : ""}`);
+      for (const h of g.hits.slice(0, hitsPer)) {
+        const ts = h.ts ? h.ts.replace("T", " ").slice(0, 16) : "-";
+        console.log(`  ${ts}  ${h.role}  ${trunc(h.excerpt, 90)}`);
+      }
+    }
+    return;
   }
 
   if (opts.json) return json(hits);

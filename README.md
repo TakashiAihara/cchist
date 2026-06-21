@@ -30,6 +30,8 @@ cchist sessions latest --json          # full SessionMeta as JSON
 cchist sessions list --local --limit 10
 cchist show <id|latest> [--tools] [--thinking] [--json]
 cchist path <id|latest>                # resolve a session id to its real cwd
+cchist outline <id|latest>             # turn-by-turn structural map of a session
+cchist read <id|latest> [m3..m7 ...]   # read message ranges with a token budget
 
 cchist stats  --by day|repo|model|session [--since 2026-06-01] [--local]
 cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage
@@ -50,8 +52,17 @@ Substring by default (case-insensitive); add `--regex` for a regular expression
 and `--case` for case-sensitive matching. Scopes to user prompts and assistant
 text; `--role user|assistant|all` narrows it and `--thinking` also scans
 assistant thinking blocks. `--context <n>` sets the excerpt width and `--limit
-<n>` caps the hit count. Tool calls are intentionally out of scope — use `bash` /
-`files` for those.
+<n>` caps the hit count. `--session <id>` searches within a single session, and
+`--group` groups hits by session (most hits first, `--hits-per <n>` excerpts
+each). Tool calls are intentionally out of scope — use `bash` / `files` for those.
+
+### `outline` / `read`
+
+`outline <id>` prints a turn-by-turn map (`m0`, `m1`, ... index, role, time,
+one-line summary). `read <id> [ranges...]` prints full message text for the given
+ranges (`m3`, `3`, `m3..m7`, `3..7`; default all), with `--tools` / `--thinking`
+/ `--tool-results` to include those. Both budget output to ~6000 approx tokens by
+default — raise with `--budget <n>` or lift it with `--no-budget`.
 
 ### Common flags
 

@@ -1,5 +1,5 @@
 import { readdirSync, statSync, existsSync } from "node:fs";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 import { homedir } from "node:os";
 
 export function projectsDir(): string {
@@ -36,4 +36,17 @@ export function listSessionFiles(dir = projectsDir()): FileEntry[] {
     }
   }
   return out.sort((a, b) => b.mtimeMs - a.mtimeMs);
+}
+
+/**
+ * Resolve a session id (prefix ok) or the literal "latest" to a file path.
+ * Returns null if nothing matches. mtime-desc order means "latest" is files[0]
+ * and a prefix matches the most recent session sharing that prefix.
+ */
+export function resolveSessionFile(idOrLatest: string, files = listSessionFiles()): string | null {
+  if (idOrLatest === "latest") return files[0]?.file ?? null;
+  for (const f of files) {
+    if (basename(f.file, ".jsonl").startsWith(idOrLatest)) return f.file;
+  }
+  return null;
 }
