@@ -1,0 +1,21 @@
+{
+  "name": "cchist",
+  "version": "0.1.0",
+  "description": "Non-interactive CLI to inspect and analyze Claude Code session history (JSONL)",
+  "type": "module",
+  "bin": {
+    "cchist": "./src/index.ts"
+  },
+  "scripts": {
+    "cchist": "bun run src/index.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "commander": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5"
+  }
+}
