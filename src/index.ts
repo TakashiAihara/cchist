@@ -11,6 +11,8 @@ import { files } from "./commands/files";
 import { activity } from "./commands/activity";
 import { search } from "./commands/search";
 import { commands } from "./commands/commands";
+import { outline } from "./commands/outline";
+import { read } from "./commands/read";
 
 const program = new Command();
 
@@ -157,11 +159,36 @@ addExclude(
     .option("--thinking", "also search assistant thinking blocks")
     .option("--context <n>", "excerpt context chars around the match", "60")
     .option("--limit <n>", "max hits", "50")
+    .option("--session <id>", "search within one session (id prefix or 'latest')")
+    .option("--group", "group hits by session")
+    .option("--hits-per <n>", "max excerpts per session in grouped output", "2")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
     .option("--since <date>", "only sessions active on/after this date (ISO)")
     .option("--json", "machine-readable output"),
 ).action(search);
+
+program
+  .command("outline")
+  .argument("<id>", "session id (prefix ok) or 'latest'")
+  .description("turn-by-turn structural map of a session")
+  .option("--budget <n>", "approx output token budget", "6000")
+  .option("--no-budget", "disable output budgeting")
+  .option("--json", "machine-readable output")
+  .action(outline);
+
+program
+  .command("read")
+  .argument("<id>", "session id (prefix ok) or 'latest'")
+  .argument("[ranges...]", "message ranges: m3, 3, m3..m7 or 3..7 (default: all)")
+  .description("read transcript message ranges with a token budget")
+  .option("--budget <n>", "approx output token budget", "6000")
+  .option("--no-budget", "disable output budgeting")
+  .option("--tools", "include tool calls")
+  .option("--tool-results", "include tool results")
+  .option("--thinking", "include thinking blocks")
+  .option("--json", "machine-readable output")
+  .action(read);
 
 program.parseAsync().catch((e) => {
   console.error(e instanceof Error ? e.message : e);
