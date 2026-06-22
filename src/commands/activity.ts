@@ -6,7 +6,7 @@ type Opts = CommonFilter & { json?: boolean };
 
 /** Activity over time: total active span + hour-of-day histogram (local time). */
 export function activity(opts: Opts): void {
-  const byHour = new Array<number>(24).fill(0);
+  const byHour = Array.from({ length: 24 }, () => 0);
   let sessions = 0;
   let records = 0;
   let totalMs = 0;

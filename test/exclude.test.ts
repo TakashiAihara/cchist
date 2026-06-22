@@ -28,8 +28,8 @@ describe("isExcluded", () => {
   });
 
   test("null cwd / entrypoint never match a rule", () => {
-    expect(isExcluded({ cwd: null, entrypoint: null }, { excludeCwd: ["*"], excludeEntrypoint: ["x"] })).toBe(
-      false,
-    );
+    expect(
+      isExcluded({ cwd: null, entrypoint: null }, { excludeCwd: ["*"], excludeEntrypoint: ["x"] }),
+    ).toBe(false);
   });
 });

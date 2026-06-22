@@ -2,7 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { messagesFromRecords, approxTokens, msgSummary } from "../src/lib/messages";
 
 const recs = [
-  { type: "user", timestamp: "2026-06-20T10:00:00.000Z", message: { role: "user", content: "hello there" } },
+  {
+    type: "user",
+    timestamp: "2026-06-20T10:00:00.000Z",
+    message: { role: "user", content: "hello there" },
+  },
   {
     type: "assistant",
     timestamp: "2026-06-20T10:00:05.000Z",

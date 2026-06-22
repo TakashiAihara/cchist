@@ -63,7 +63,8 @@ export function recordTexts(
     if (typeof c === "string") out.push({ role: "user", text: c });
     else if (Array.isArray(c)) {
       for (const b of c) {
-        if (b?.type === "text" && typeof b.text === "string") out.push({ role: "user", text: b.text });
+        if (b?.type === "text" && typeof b.text === "string")
+          out.push({ role: "user", text: b.text });
       }
     }
   }
@@ -134,7 +135,12 @@ export function search(query: string, opts: Opts): void {
       for (const seg of recordTexts(rec, { role, thinking: opts.thinking })) {
         const idx = match(seg.text);
         if (idx >= 0) {
-          hits.push({ id, ts: rec.timestamp ?? null, role: seg.role, excerpt: excerpt(seg.text, idx, ctx) });
+          hits.push({
+            id,
+            ts: rec.timestamp ?? null,
+            role: seg.role,
+            excerpt: excerpt(seg.text, idx, ctx),
+          });
           if (hits.length >= limit) break outer;
         }
       }

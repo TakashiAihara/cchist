@@ -45,7 +45,13 @@ describe("trunc", () => {
 
 describe("table", () => {
   test("pads columns to the widest cell and adds a separator row", () => {
-    const out = table(["name", "n"], [["a", "1"], ["bbb", "22"]]);
+    const out = table(
+      ["name", "n"],
+      [
+        ["a", "1"],
+        ["bbb", "22"],
+      ],
+    );
     const lines = out.split("\n");
     expect(lines).toHaveLength(4); // header, separator, 2 rows
     expect(lines[0]).toBe("name  n");
