@@ -101,6 +101,41 @@ src/commands/*.ts     各サブコマンド (parse 層の上の集計に専念)
 - 言語: Bun + TypeScript (CLAUDE.md 第一選択。`bun run` で .ts 直接実行、commander 流用)。
   配布バイナリ単体化が要件化したら Rust/Go を再検討。
 
+## 配布 (Distribution)
+
+`bun build --compile` で OS x arch の standalone binary (Bun runtime 同梱) を
+release asset として出す方針。`.github/workflows/release.yml` が `tags: v*` push
+を起点に linux-x64 / linux-arm64 / darwin-arm64 / darwin-x64 を一括ビルドして
+`gh release create` する。
+
+### 単一ソース版数
+
+`src/index.ts` で `import pkg from "../package.json" with { type: "json" }` し、
+`commander.version(pkg.version)` で表示。Bun は JSON import を `--compile` 時に
+binary 内へ bundle するため、source 実行 / compile binary のどちらでも
+package.json と同じ値が出る。`.version("...")` ハードコードと package.json の
+二重管理を避ける目的。
+
+### Install one-liner
+
+`install.sh` (POSIX `sh`, repo root) を `curl ... | sh` で実行する形に統一:
+
+- `uname -s` / `uname -m` から OS (linux / darwin) と arch (x64 / arm64) を判定し、
+  release asset 名 `cchist-${os}-${arch}` に解決。
+- 既定 install 先は `${HOME}/.local/bin`。`CCHIST_INSTALL_DIR` で上書き可。
+- 既定 version は `latest` (`/releases/latest/download/...`)。`CCHIST_VERSION` で
+  特定 tag を指定可。
+- HTML レスポンス (404 ページ等) を `curl -fL` を抜けた場合に備えて先頭バイトで
+  検出して reject。
+- PATH 上に install dir があるか確認し、無ければ shell profile への追加例を案内。
+
+### Release フロー (maintainer)
+
+`bun pm version patch|minor|major|<x.y.z>` で package.json bump + 自動 commit +
+`vX.Y.Z` tag → `git push --follow-tags` で release.yml が発火。npm 互換の
+`postversion` hook で auto-push する選択もあるが、意図しない release 発火を
+避けるため push は明示操作のままにしている。
+
 ## 未実装 (phase 2)
 
 - cost 算出: model 別単価テーブルが必要。単価は変動するため claude-api skill で確定値を取ってから実装する
