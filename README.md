@@ -21,6 +21,7 @@ curl -fsSL https://raw.githubusercontent.com/TakashiAihara/cchist/main/install.s
 Env overrides:
 
 - `CCHIST_VERSION=v0.1.0` — install a specific tag (default: `latest`).
+  Bare `0.1.0` is also accepted; the `v` prefix is added automatically.
 - `CCHIST_INSTALL_DIR=/usr/local/bin` — install into a different dir
   (default: `~/.local/bin`).
 

@@ -17,6 +17,14 @@ INSTALL_DIR="${CCHIST_INSTALL_DIR:-${HOME}/.local/bin}"
 log()  { printf 'cchist-install: %s\n' "$*" >&2; }
 die()  { log "ERROR: $*"; exit 1; }
 
+# Normalize VERSION: release tags are `vX.Y.Z`, so accept either form (bare
+# `0.1.0` would otherwise silently 404 against /releases/download/0.1.0/...).
+case "$VERSION" in
+  latest|v[0-9]*) ;;
+  [0-9]*)         VERSION="v${VERSION}" ;;
+  *)              die "invalid CCHIST_VERSION: '${VERSION}' (expected 'latest', 'vX.Y.Z', or 'X.Y.Z')" ;;
+esac
+
 # --- preflight -------------------------------------------------------------
 
 command -v curl >/dev/null 2>&1 || die "curl is required but was not found in PATH."
