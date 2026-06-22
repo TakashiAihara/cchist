@@ -55,19 +55,25 @@ log "target:   ${INSTALL_DIR}/cchist"
 
 # --- download --------------------------------------------------------------
 
-tmpdir=$(mktemp -d 2>/dev/null || mktemp -d -t cchist)
+# Portable mktemp: positional template form works on both GNU coreutils and
+# BSD/macOS, while bare `mktemp -d` errors on macOS without a template.
+tmpdir=$(mktemp -d "${TMPDIR:-/tmp}/cchist.XXXXXX")
 trap 'rm -rf "$tmpdir"' EXIT INT TERM
 
 tmpfile="${tmpdir}/${asset}"
-# -f: fail on HTTP errors (4xx/5xx) instead of writing the body to disk.
-# -L: follow redirects (releases/latest/download/ is one).
-if ! curl -fL --progress-bar -o "$tmpfile" "$url"; then
+# -f:               fail on HTTP errors (4xx/5xx) instead of writing the body to disk.
+# -L:               follow redirects (releases/latest/download/ is one).
+# --connect-timeout: cap the TCP connect phase so a black-holed network fails fast.
+# --max-time:        cap the whole transfer so a stalled CDN doesn't hang the installer.
+if ! curl -fL --progress-bar --connect-timeout 10 --max-time 300 -o "$tmpfile" "$url"; then
   die "download failed: ${url}"
 fi
 
-# Reject HTML responses (e.g. 404 page) that slipped past -f.
-case "$(head -c 16 "$tmpfile" 2>/dev/null || true)" in
-  '<!DOCTYPE html'*|'<html'*)
+# Reject HTML responses (e.g. 404 page) that slipped past -f. `dd` is POSIX and
+# reads exactly 16 bytes; do NOT `|| true` here — a read failure should propagate.
+header=$(dd if="$tmpfile" bs=16 count=1 2>/dev/null)
+case "$header" in
+  '<!DOCTYPE'*|'<html'*)
     die "downloaded content looks like HTML, not a binary. URL: ${url}"
     ;;
 esac
@@ -79,7 +85,12 @@ chmod +x "$tmpfile"
 mkdir -p "$INSTALL_DIR" || die "cannot create install dir: ${INSTALL_DIR}"
 mv -f "$tmpfile" "${INSTALL_DIR}/cchist" || die "cannot write to ${INSTALL_DIR}/cchist"
 
-installed_version=$("${INSTALL_DIR}/cchist" --version 2>/dev/null || echo "(version check failed)")
+# Smoke-test the installed binary. A failing --version typically means a
+# wrong-arch download or a corrupted asset, and must abort — silently reporting
+# "(version check failed)" while exiting 0 would mislead users / installer pipes.
+if ! installed_version=$("${INSTALL_DIR}/cchist" --version 2>&1); then
+  die "installed binary at ${INSTALL_DIR}/cchist failed --version (wrong arch or corrupted asset?): ${installed_version}"
+fi
 log "installed cchist ${installed_version} -> ${INSTALL_DIR}/cchist"
 
 # --- PATH advice -----------------------------------------------------------
