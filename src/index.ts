@@ -14,6 +14,7 @@ import { search } from "./commands/search";
 import { commands } from "./commands/commands";
 import { outline } from "./commands/outline";
 import { read } from "./commands/read";
+import { completion } from "./commands/completion";
 
 const program = new Command();
 
@@ -212,6 +213,35 @@ program
   .option("--thinking", "include thinking blocks")
   .option("--json", "machine-readable output")
   .action(read);
+
+program
+  .command("completion")
+  .argument("<shell>", "target shell: bash, zsh, or fish")
+  .description("print a shell completion script for cchist")
+  .addHelpText(
+    "after",
+    `
+Install (file-based — user-writable paths):
+  bash:   mkdir -p ~/.local/share/bash-completion/completions \\
+            && cchist completion bash > ~/.local/share/bash-completion/completions/cchist
+  zsh:    mkdir -p ~/.zsh/completions \\
+            && cchist completion zsh  > ~/.zsh/completions/_cchist
+          # then add to ~/.zshrc, before \`compinit\`:
+          #   fpath=(~/.zsh/completions $fpath)
+  fish:   cchist completion fish > ~/.config/fish/completions/cchist.fish
+
+Install (eval on shell init — no file):
+  bash:   echo 'source <(cchist completion bash)' >> ~/.bashrc
+  zsh:    echo 'source <(cchist completion zsh)'  >> ~/.zshrc
+  fish:   echo 'cchist completion fish | source'   >> ~/.config/fish/config.fish`,
+  )
+  .action((shell: string) => {
+    if (shell !== "bash" && shell !== "zsh" && shell !== "fish") {
+      console.error(`unsupported shell: ${shell} (expected bash, zsh, or fish)`);
+      process.exit(2);
+    }
+    completion(shell, program);
+  });
 
 program.parseAsync().catch((e) => {
   console.error(e instanceof Error ? e.message : e);
