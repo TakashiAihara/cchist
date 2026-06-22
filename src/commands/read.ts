@@ -34,11 +34,9 @@ function renderMsg(m: Msg, opts: Opts): string {
 }
 
 export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void {
-  const file = resolveSessionFile(idOrLatest);
-  if (!file) {
-    throw notFound(`session not found: ${idOrLatest}`);
-  }
-
+  // Validate ranges before touching the filesystem so a typo (`junk_range`)
+  // reports INVALID_INPUT (exit 3) even when no sessions match the id — pure
+  // input validation should always run before IO.
   const ranges: Range[] = [];
   for (const a of rangeArgs ?? []) {
     const r = parseRange(a);
@@ -46,6 +44,11 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
       throw invalidInput(`invalid range: ${a} (use m3, 3, m3..m7 or 3..7)`);
     }
     ranges.push(r);
+  }
+
+  const file = resolveSessionFile(idOrLatest);
+  if (!file) {
+    throw notFound(`session not found: ${idOrLatest}`);
   }
 
   const all = messagesFromRecords(readRecords(file));
