@@ -260,6 +260,21 @@ CLI flags (`--exclude-cwd` / `--exclude-entrypoint`) are unioned with the config
 rules. A missing or invalid config file excludes nothing (an invalid one is
 reported on stderr and ignored).
 
+## Contributing
+
+`bun install` runs the `prepare` script, which wires up
+[lefthook](https://lefthook.dev) — every `git commit` then runs (in parallel,
+on the staged files only where possible):
+
+- `oxfmt --check` — formatting
+- `oxlint` — linting
+- `tsc --noEmit` — typecheck (only when a `.ts`/`.tsx` file is staged)
+
+`bun test` stays in CI rather than the commit hook (the same suite runs there).
+The hook lives in `.git/hooks/pre-commit`; its source of truth is
+[`lefthook.yml`](lefthook.yml). Bypass once in an emergency with
+`git commit --no-verify`.
+
 ## Design
 
 See [`docs/design/cchist.md`](docs/design/cchist.md) for the data model, command

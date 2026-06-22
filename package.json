@@ -2,23 +2,25 @@
   "name": "cchist",
   "version": "0.1.0",
   "description": "Non-interactive CLI to inspect and analyze Claude Code session history (JSONL)",
-  "type": "module",
   "bin": {
     "cchist": "./src/index.ts"
   },
+  "type": "module",
   "scripts": {
     "cchist": "bun run src/index.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src test",
-    "format": "oxfmt src test",
-    "format:check": "oxfmt --check src test"
+    "format": "oxfmt src test package.json tsconfig.json .oxfmtrc.json",
+    "format:check": "oxfmt --check src test package.json tsconfig.json .oxfmtrc.json",
+    "prepare": "lefthook install"
   },
   "dependencies": {
     "commander": "^14.0.0"
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "lefthook": "^2.1.9",
     "oxfmt": "^0.47.0",
     "oxlint": "^1.62.0",
     "typescript": "^5"
