@@ -107,6 +107,15 @@ activation can produce both signals (you type `/foo` → assistant calls
 `Skill(skill: "foo")`), so `all` may double-count compared to either single
 source — use `slash` for "intent" and `tool` for "execution".
 
+Notes:
+- `--source tool` silently skips `Skill` tool_use blocks missing a parseable
+  `input.skill` (we want clean names here). For totals-preserving accounting
+  of those leftovers, see `cchist tools --expand-skills` below, which surfaces
+  them as `Skill:?`.
+- `--skills-only` filters built-ins (`clear`, `model`, ...) out of the
+  *slash* source; it has no effect under `--source tool` because every name
+  the Skill tool produces is already a namespaced skill.
+
 `tools` lumps every `Skill` invocation into a single `Skill` row by default.
 Pass `--expand-skills` to break it into `Skill:<name>` rows. If any `Skill`
 tool_use lacks a parseable `input.skill`, the leftover is surfaced as

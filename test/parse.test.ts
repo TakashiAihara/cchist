@@ -24,12 +24,12 @@ describe("parseSession", () => {
   });
 
   test("counts a real prompt as a user turn but not tool_result or isMeta turns", () => {
-    // line 1 = real prompt (1); line 4 = pure tool_result (no); line 8 = isMeta (no)
+    // line 1 = real prompt (1); line 5 = pure tool_result (no); line 9 = isMeta (no)
     expect(meta.userTurns).toBe(1);
   });
 
   test("counts assistant messages including the synthetic one", () => {
-    // text (line 2) + Bash tool_use (line 3) + Skill tool_use (line 9) + synthetic (line 5) = 4
+    // text (line 2) + Bash tool_use (line 3) + Skill tool_use (line 4) + synthetic (line 6) = 4
     expect(meta.assistantMsgs).toBe(4);
   });
 
@@ -50,7 +50,7 @@ describe("parseSession", () => {
   });
 
   test("counts content blocks by type", () => {
-    // text: line 2 + synthetic line 5 = 2; thinking: 1; tool_use: Bash (line 3) + Skill (line 9) = 2
+    // text: line 2 + synthetic line 6 = 2; thinking: 1; tool_use: Bash (line 3) + Skill (line 4) = 2
     expect(meta.blocks).toEqual({ text: 2, thinking: 1, toolUse: 2 });
   });
 

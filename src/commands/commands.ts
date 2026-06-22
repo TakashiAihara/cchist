@@ -52,6 +52,12 @@ export function extractCommandNames(rec: any): string[] {
  * activation may produce both signals (user types `/foo` → assistant calls
  * `Skill(skill: "foo")`) or only one (proactive Skill invocation by the
  * assistant has no slash event).
+ *
+ * Note: Skill tool_use blocks whose `input.skill` is missing or non-string are
+ * skipped (no rough bucket here — `cchist tools --expand-skills` surfaces that
+ * leftover as `Skill:?`, but here under `commands` we want clean skill names).
+ * Output is normalized to match `extractCommandNames`: any leading `/` is
+ * stripped so the two extractors produce the same key format.
  */
 export function extractSkillToolInvocations(rec: any): string[] {
   if (rec?.type !== "assistant") return [];
@@ -59,10 +65,11 @@ export function extractSkillToolInvocations(rec: any): string[] {
   if (!Array.isArray(content)) return [];
   const out: string[] = [];
   for (const b of content) {
-    if (b?.type === "tool_use" && b?.name === "Skill" && typeof b?.input?.skill === "string") {
-      const sk = b.input.skill.trim();
-      if (sk) out.push(sk);
-    }
+    if (b?.type !== "tool_use" || b?.name !== "Skill") continue;
+    const skill = b?.input?.skill;
+    if (typeof skill !== "string") continue;
+    const sk = skill.trim().replace(/^\//, "");
+    if (sk) out.push(sk);
   }
   return out;
 }
@@ -77,6 +84,8 @@ export function isSkillCommand(name: string): boolean {
 }
 
 export function commands(opts: Opts): void {
+  // Commander's .default("all") guarantees this is set; the fallback is just
+  // for type-safety in tests that call commands() directly without options.
   const source: Source = opts.source ?? "all";
   const counts = new Map<string, number>();
   for (const { recs } of iterFiltered(opts)) {

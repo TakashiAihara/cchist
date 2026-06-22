@@ -153,9 +153,15 @@ addExclude(
     .command("commands")
     .description("slash-command / skill usage frequency (typed slash + Skill tool_use)")
     .option("--top <n>", "max rows", "30")
-    .option("--skills-only", "exclude built-in commands (clear/model/...), keep namespaced skills")
+    .option(
+      "--skills-only",
+      "exclude built-in commands (clear/model/...), keep namespaced skills (slash only; --source tool is already skill-only)",
+    )
     .addOption(
-      new Option("--source <where>", "count from: typed slash, Skill tool, or both")
+      new Option(
+        "--source <where>",
+        "count from: typed slash (<command-name>), Skill tool_use, or both",
+      )
         .choices(["slash", "tool", "all"])
         .default("all"),
     )
