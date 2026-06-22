@@ -4,23 +4,31 @@
 # is easy to confuse with normal work in the foreground).
 #
 # Install: handled automatically by `bun install` via package.json `prepare`.
-# Bypass (rare, e.g. emergency revert): `git commit --no-verify`.
+# Bypass (rare, e.g. emergency revert): `git commit --no-verify`. Each job's
+# `fail_text` below also nudges contributors toward the right auto-fix.
 #
-# Docs: https://lefthook.dev/configuration/
+# Note on duplication: jobs below invoke `bun x oxfmt` / `bun x oxlint`
+# directly (passing `{staged_files}` for efficiency) instead of going through
+# the `package.json` scripts (`bun run format:check` etc.), since the scripts
+# don't take file args. If you change the lint/format binaries or flags,
+# update BOTH this file and `package.json`. CI uses the scripts.
+#
+# Glob semantics: lefthook uses gobwas/glob where `*` matches across `/`.
+# So `*.ts` correctly matches `src/lib/foo.ts` — no `**/` prefix needed.
+# https://lefthook.dev/configuration/
 
 pre-commit:
   parallel: true
   jobs:
     - name: format
-      # Restrict to file types oxfmt supports. If none of the staged files
-      # match, lefthook skips this job (so a docs-only commit doesn't run
-      # the formatter against an empty list).
       glob: "*.{ts,tsx,js,jsx,json}"
       run: bun x oxfmt --check {staged_files}
+      fail_text: "format check failed. Run `bun run format` to auto-fix, or `git commit --no-verify` to bypass (last resort)."
 
     - name: lint
       glob: "*.{ts,tsx,js,jsx}"
       run: bun x oxlint {staged_files}
+      fail_text: "lint failed. Fix the reported issues; oxlint has no auto-fix mode. `git commit --no-verify` bypasses, but please don't ship a lint error."
 
     - name: typecheck
       # `tsc --noEmit` walks the whole project (types cross file boundaries),
@@ -29,3 +37,4 @@ pre-commit:
       # is wasted work.
       glob: "*.{ts,tsx}"
       run: bun run typecheck
+      fail_text: "typecheck failed. Run `bun run typecheck` to see the full error list. `git commit --no-verify` bypasses if it's urgent."
