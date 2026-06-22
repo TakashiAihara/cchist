@@ -73,7 +73,11 @@ function toOptionInfo(o: unknown): OptionInfo {
   };
 }
 
-/** All flag tokens (long preferred, short kept too) sorted for stable output. */
+/**
+ * All flag tokens for an option in a deterministic order: long first (the form
+ * we surface in help), then short. Not alphabetical — sorting would push `-h`
+ * ahead of `--help`, which is the less useful one to land on first.
+ */
 function flagTokens(opt: OptionInfo): string[] {
   const t: string[] = [];
   if (opt.long) t.push(opt.long);
