@@ -28,7 +28,11 @@ export function trunc(s: string, n: number, from: "left" | "right" = "right"): s
 export function table(headers: string[], rows: string[][]): string {
   const all = [headers, ...rows];
   const widths = headers.map((_, i) => Math.max(...all.map((r) => (r[i] ?? "").length)));
-  const line = (r: string[]) => r.map((c, i) => (c ?? "").padEnd(widths[i] ?? 0)).join("  ").trimEnd();
+  const line = (r: string[]) =>
+    r
+      .map((c, i) => (c ?? "").padEnd(widths[i] ?? 0))
+      .join("  ")
+      .trimEnd();
   const sep = widths.map((w) => "-".repeat(w)).join("  ");
   return [line(headers), sep, ...rows.map(line)].join("\n");
 }

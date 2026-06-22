@@ -73,7 +73,9 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     const block = renderMsg(m, opts);
     spent += approxTokens(block);
     if (spent > budget && shown > 0) {
-      console.log(`\n… (budget ${budget} reached; ${selected.length - shown} more — raise --budget or --no-budget)`);
+      console.log(
+        `\n… (budget ${budget} reached; ${selected.length - shown} more — raise --budget or --no-budget)`,
+      );
       break;
     }
     console.log((shown ? "\n" : "") + block);

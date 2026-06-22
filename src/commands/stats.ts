@@ -35,9 +35,16 @@ export function stats(opts: StatsOpts): void {
   const groups = new Map<string, Group>();
   for (const m of metas) {
     const k = keyOf(m, by);
-    const g =
-      groups.get(k) ??
-      { key: k, sessions: 0, turns: 0, input: 0, output: 0, cacheRead: 0, cacheCreate: 0, tools: 0 };
+    const g = groups.get(k) ?? {
+      key: k,
+      sessions: 0,
+      turns: 0,
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheCreate: 0,
+      tools: 0,
+    };
     g.sessions++;
     g.turns += m.userTurns;
     g.input += m.usage.input;

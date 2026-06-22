@@ -30,8 +30,18 @@ function collect(value: string, acc: string[]): string[] {
 /** Add the generic exclusion flags shared by every session-enumerating command. */
 function addExclude(cmd: Command): Command {
   return cmd
-    .option("--exclude-cwd <glob>", "exclude sessions whose cwd matches this glob (repeatable)", collect, [])
-    .option("--exclude-entrypoint <val>", "exclude sessions with this entrypoint (repeatable)", collect, []);
+    .option(
+      "--exclude-cwd <glob>",
+      "exclude sessions whose cwd matches this glob (repeatable)",
+      collect,
+      [],
+    )
+    .option(
+      "--exclude-entrypoint <val>",
+      "exclude sessions with this entrypoint (repeatable)",
+      collect,
+      [],
+    );
 }
 
 const sessions = program.command("sessions").description("list / locate sessions");
