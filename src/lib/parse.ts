@@ -23,6 +23,7 @@ export function parseSession(file: string): SessionMeta {
     usage: emptyUsage(),
     blocks: { text: 0, thinking: 0, toolUse: 0 },
     tools: {},
+    skills: {},
   };
   const models = new Set<string>();
 
@@ -86,6 +87,12 @@ export function parseSession(file: string): SessionMeta {
             meta.blocks.toolUse++;
             const n = b.name || "?";
             meta.tools[n] = (meta.tools[n] || 0) + 1;
+            // Track which skill the assistant invoked when the tool is `Skill`,
+            // so callers can render Skill:<name> granularity later.
+            if (n === "Skill" && typeof b.input?.skill === "string") {
+              const sk = b.input.skill.trim();
+              if (sk) meta.skills[sk] = (meta.skills[sk] || 0) + 1;
+            }
           }
         }
       }

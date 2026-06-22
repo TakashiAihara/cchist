@@ -6,4 +6,5 @@
 {"type":"ai-title","aiTitle":"Test Session","timestamp":"2026-06-20T10:02:01.000Z"}
 {"type":"last-prompt","lastPrompt":"final prompt","timestamp":"2026-06-20T10:02:02.000Z"}
 {"type":"user","isMeta":true,"timestamp":"2026-06-20T10:02:03.000Z","message":{"role":"user","content":"meta noise"}}
+{"type":"assistant","timestamp":"2026-06-20T10:01:02.000Z","message":{"model":"claude-opus-4-8","content":[{"type":"tool_use","name":"Skill","input":{"skill":"ta.session.wrap-up"}}]}}
 this line is not valid json and must be skipped

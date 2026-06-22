@@ -26,6 +26,9 @@ export type SessionMeta = {
   usage: Usage;
   blocks: { text: number; thinking: number; toolUse: number };
   tools: Record<string, number>;
+  // Per-skill invocations via the Skill tool. Mirrors `tools.Skill` total, but
+  // broken down by `input.skill` so callers can render `Skill:<name>` rows.
+  skills: Record<string, number>;
 };
 
 export type CommonFilter = {

@@ -72,10 +72,11 @@ cchist read <id|latest> [m3..m7 ...]   # read message ranges with a token budget
 cchist stats  --by day|repo|model|session [--since 2026-06-01] [--local]
 cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage
 cchist tools  [--since 2026-06-01] [--local]      # tool-call frequency
+cchist tools  --expand-skills                     # break Skill into Skill:<name>
 cchist bash   [--top 25] [--full]                 # most-used Bash commands
 cchist files  [--top 30]                          # most-edited files
 cchist activity                                    # active time + hour histogram
-cchist commands [--top 30] [--skills-only]        # typed slash-command / skill usage
+cchist commands [--top 30] [--skills-only] [--source slash|tool|all]   # slash + Skill tool usage
 
 cchist search <query>                              # full-text search across prompts & messages
 cchist search "rebase" --role user --since 2026-06-01
@@ -91,6 +92,25 @@ assistant thinking blocks. `--context <n>` sets the excerpt width and `--limit
 <n>` caps the hit count. `--session <id>` searches within a single session, and
 `--group` groups hits by session (most hits first, `--hits-per <n>` excerpts
 each). Tool calls are intentionally out of scope — use `bash` / `files` for those.
+
+### `commands` / `tools`
+
+`commands` counts two distinct signals and unions them by default:
+
+- **slash** — what you typed (`/foo` captured as a `<command-name>` tag on the
+  user record). This includes built-in commands like `/clear`, `/model`.
+- **tool** — what the assistant actually executed (a `Skill` tool_use block
+  with `input.skill: "<name>"`).
+
+`--source slash|tool|all` picks one or both (default: `all`). The same
+activation can produce both signals (you type `/foo` → assistant calls
+`Skill(skill: "foo")`), so `all` may double-count compared to either single
+source — use `slash` for "intent" and `tool` for "execution".
+
+`tools` lumps every `Skill` invocation into a single `Skill` row by default.
+Pass `--expand-skills` to break it into `Skill:<name>` rows. If any `Skill`
+tool_use lacks a parseable `input.skill`, the leftover is surfaced as
+`Skill:?` so totals stay consistent.
 
 ### `outline` / `read`
 
