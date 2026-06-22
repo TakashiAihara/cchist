@@ -2,8 +2,9 @@ import { listSessionFiles } from "../lib/discover";
 import { parseSession } from "../lib/parse";
 import { loadSessions } from "../lib/filter";
 import { withConfigExcludes } from "../lib/config";
+import { notFound } from "../lib/errors";
 import { isExcluded } from "../lib/exclude";
-import { table, fmtK, trunc, json, log } from "../lib/format";
+import { table, fmtK, trunc, json } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
 type ListOpts = CommonFilter & { limit?: string; json?: boolean };
@@ -39,8 +40,7 @@ export function sessionsLatest(opts: LatestOpts): void {
     console.log(m.id); // default: bare id (scriptable)
     return;
   }
-  log("no sessions found");
-  process.exit(1);
+  throw notFound("no sessions found");
 }
 
 function out(s: string): void {

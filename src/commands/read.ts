@@ -1,8 +1,9 @@
 import { readRecords } from "../lib/records";
 import { resolveSessionFile } from "../lib/discover";
+import { invalidInput, notFound } from "../lib/errors";
 import { messagesFromRecords, approxTokens, type Msg } from "../lib/messages";
 import { parseRange, inAnyRange, type Range } from "../lib/ranges";
-import { json, log } from "../lib/format";
+import { json } from "../lib/format";
 
 type Opts = {
   json?: boolean;
@@ -35,16 +36,14 @@ function renderMsg(m: Msg, opts: Opts): string {
 export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void {
   const file = resolveSessionFile(idOrLatest);
   if (!file) {
-    log(`session not found: ${idOrLatest}`);
-    process.exit(1);
+    throw notFound(`session not found: ${idOrLatest}`);
   }
 
   const ranges: Range[] = [];
   for (const a of rangeArgs ?? []) {
     const r = parseRange(a);
     if (!r) {
-      log(`invalid range: ${a} (use m3, 3, m3..m7 or 3..7)`);
-      process.exit(1);
+      throw invalidInput(`invalid range: ${a} (use m3, 3, m3..m7 or 3..7)`);
     }
     ranges.push(r);
   }
@@ -81,5 +80,5 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     console.log((shown ? "\n" : "") + block);
     shown++;
   }
-  if (!shown) log("no messages in the given range(s)");
+  if (!shown) throw notFound("no messages in the given range(s)");
 }

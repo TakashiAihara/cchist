@@ -1,7 +1,8 @@
 import { basename } from "node:path";
 import { iterFiltered, readRecords } from "../lib/records";
 import { resolveSessionFile } from "../lib/discover";
-import { table, trunc, json, log } from "../lib/format";
+import { notFound } from "../lib/errors";
+import { table, trunc, json } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
 type Opts = CommonFilter & {
@@ -120,8 +121,7 @@ export function search(query: string, opts: Opts): void {
   if (opts.session) {
     const file = resolveSessionFile(opts.session);
     if (!file) {
-      log(`session not found: ${opts.session}`);
-      process.exit(1);
+      throw notFound(`session not found: ${opts.session}`);
     }
     sources = [{ file, recs: readRecords(file) }];
   } else {
@@ -151,8 +151,7 @@ export function search(query: string, opts: Opts): void {
     const groups = groupBySession(hits);
     if (opts.json) return json(groups);
     if (!groups.length) {
-      console.error("no matches");
-      return;
+      throw notFound("no matches");
     }
     const hitsPer = opts.hitsPer ? parseInt(opts.hitsPer, 10) : 2;
     for (const g of groups) {
@@ -168,8 +167,7 @@ export function search(query: string, opts: Opts): void {
   if (opts.json) return json(hits);
 
   if (!hits.length) {
-    console.error("no matches");
-    return;
+    throw notFound("no matches");
   }
 
   console.log(

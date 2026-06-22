@@ -124,6 +124,39 @@ src/commands/*.ts     各サブコマンド (parse 層の上の集計に専念)
 - 言語: Bun + TypeScript (CLAUDE.md 第一選択。`bun run` で .ts 直接実行、commander 流用)。
   配布バイナリ単体化が要件化したら Rust/Go を再検討。
 
+## エラー処理と exit code
+
+`src/lib/errors.ts` の `AppError extends Error` (`exitCode` 付き) を全コマンドが
+throw する規約。`process.exit` は `src/index.ts` の top-level catch (
+`program.parseAsync().catch(...)`) 1 箇所だけに集約し、`AppError` を見たら
+そこに記録された `exitCode` を、それ以外の例外は generic `EXIT.ERROR (1)` で
+出口を決める。`stderr` には `cchist: <message>` を必ず出す。
+
+採用 exit code:
+
+- `0 OK`
+- `1 ERROR` (想定外の例外)
+- `2 NOT_FOUND` (session 不在 / `--session` 不在 / `search` 0 件マッチ / `read`
+  範囲指定で選択メッセージ 0 件 / `sessions latest` で対象なし / `path` で cwd
+  記録なし)
+- `3 INVALID_INPUT` (range syntax / `--source` / `completion <shell>` の choice
+  値違反)
+
+convenience は `notFound(msg)` / `invalidInput(msg)` で AppError を構築する。
+
+コマンド層は副作用 (`process.exit`) を持たず Error throw に閉じるので、
+unit test が書きやすい (`expect(() => f()).toThrow(AppError)` で exitCode を検査
+可能)。
+
+参考: mfme-cli の `src/errors.ts` を踏襲。`grep` 慣習 (no-match = 1) ではなく
+`2` を使う理由は、cchist では `1` を「実行そのものが壊れた」枠に取っておきたいため
+(no-match は意図された結果セットの空)。
+
+### Breaking change (vs pre-0.2)
+
+`search` での no-match が exit 0 → exit 2 に変わる。`if cchist search foo; then ...`
+で分岐していた script は **必ず壊れる** ので、exit code を読み替える必要がある。
+
 ## shell 補完 (completion)
 
 `cchist completion <bash|zsh|fish>` で補完スクリプトを stdout に吐く。

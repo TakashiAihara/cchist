@@ -196,6 +196,26 @@ echo 'source <(cchist completion zsh)'  >> ~/.zshrc
 echo 'cchist completion fish | source'  >> ~/.config/fish/config.fish
 ```
 
+### Exit codes
+
+cchist uses a narrow, stable set of exit codes so scripts can branch on failure
+kind:
+
+| Code | Name           | When |
+|-----:|----------------|------|
+| 0    | `OK`           | success |
+| 1    | `ERROR`        | unexpected / generic failure |
+| 2    | `NOT_FOUND`    | requested target absent — session id doesn't match, `latest` finds nothing, **`search` produces zero matches**, `read` ranges select no messages |
+| 3    | `INVALID_INPUT`| user input malformed — bad message range, unsupported `--source` / shell value, bad date |
+
+Breaking change vs pre-0.2 behavior: `cchist search foo` used to exit 0 with
+`no matches` on stderr; it now exits 2. Update scripts like
+`if cchist search foo; then ...` to inspect the exit code (`grep`-style
+convention — but cchist uses 2 not 1, reserving 1 for actually-broken runs).
+
+All non-OK paths write a `cchist: <message>` line to stderr. Stdout stays
+clean so it's still safe to pipe into other tools.
+
 ### Excluding noise sessions
 
 Some tools spawn their own sessions that you rarely want in analysis — for

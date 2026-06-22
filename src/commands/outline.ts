@@ -1,7 +1,8 @@
 import { readRecords } from "../lib/records";
 import { resolveSessionFile } from "../lib/discover";
+import { notFound } from "../lib/errors";
 import { messagesFromRecords, msgSummary, approxTokens, type Msg } from "../lib/messages";
-import { json, log } from "../lib/format";
+import { json } from "../lib/format";
 
 // commander maps --no-budget to budget === false; --budget <n> gives a string
 type Opts = { json?: boolean; budget?: string | boolean };
@@ -11,8 +12,7 @@ const ROLE_MARK: Record<Msg["role"], string> = { user: "▶", assistant: "●" }
 export function outline(idOrLatest: string, opts: Opts): void {
   const file = resolveSessionFile(idOrLatest);
   if (!file) {
-    log(`session not found: ${idOrLatest}`);
-    process.exit(1);
+    throw notFound(`session not found: ${idOrLatest}`);
   }
   const msgs = messagesFromRecords(readRecords(file));
 

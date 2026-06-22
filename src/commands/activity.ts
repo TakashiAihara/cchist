@@ -1,5 +1,6 @@
 import { iterFiltered } from "../lib/records";
-import { fmtDuration, fmtNum, json, log } from "../lib/format";
+import { notFound } from "../lib/errors";
+import { fmtDuration, fmtNum, json } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
 type Opts = CommonFilter & { json?: boolean };
@@ -27,8 +28,7 @@ export function activity(opts: Opts): void {
 
   if (opts.json) return json({ sessions, records, activeMs: totalMs, byHour });
   if (!sessions) {
-    log("no sessions found");
-    process.exit(1);
+    throw notFound("no sessions found");
   }
 
   console.log(
