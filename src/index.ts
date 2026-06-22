@@ -221,14 +221,19 @@ program
   .addHelpText(
     "after",
     `
-Install (one-shot):
-  bash:   cchist completion bash > /etc/bash_completion.d/cchist  # or ~/.local/share/bash-completion/completions/cchist
-  zsh:    cchist completion zsh  > "\${fpath[1]}/_cchist" && compinit
+Install (file-based — user-writable paths):
+  bash:   mkdir -p ~/.local/share/bash-completion/completions \\
+            && cchist completion bash > ~/.local/share/bash-completion/completions/cchist
+  zsh:    mkdir -p ~/.zsh/completions \\
+            && cchist completion zsh  > ~/.zsh/completions/_cchist
+          # then add to ~/.zshrc, before \`compinit\`:
+          #   fpath=(~/.zsh/completions $fpath)
   fish:   cchist completion fish > ~/.config/fish/completions/cchist.fish
 
-Install (eval-on-shell-init):
+Install (eval on shell init — no file):
   bash:   echo 'source <(cchist completion bash)' >> ~/.bashrc
-  zsh:    echo 'source <(cchist completion zsh)'  >> ~/.zshrc`,
+  zsh:    echo 'source <(cchist completion zsh)'  >> ~/.zshrc
+  fish:   echo 'cchist completion fish | source'   >> ~/.config/fish/config.fish`,
   )
   .action((shell: string) => {
     if (shell !== "bash" && shell !== "zsh" && shell !== "fish") {

@@ -72,6 +72,11 @@ describe("buildBashCompletion", () => {
     expect(out).toContain("complete -F _xcli xcli");
   });
 
+  test("doesn't ship a dead `prev` variable", () => {
+    // Reviewer flagged: `prev` was captured but never used.
+    expect(out).not.toContain("prev=");
+  });
+
   test("offers top-level subcommands in alphabetical order", () => {
     expect(out).toMatch(/COMPREPLY=\( \$\(compgen -W "ping sessions stats --help --version" -- /);
   });
@@ -95,10 +100,20 @@ describe("buildZshCompletion", () => {
     expect(out.split("\n")[0]).toBe("#compdef xcli");
   });
 
-  test("lists top-level subcommands with descriptions", () => {
+  test("ends with an explicit compdef call so eval-on-init also wires up", () => {
+    // `source <(cchist completion zsh)` won't honor the `#compdef` directive
+    // (that's compsys-autoload-only); the trailing `compdef` is required for
+    // the source-into-shell install path to actually register.
+    expect(out).toContain("compdef _xcli xcli");
+    expect(out).not.toMatch(/^_xcli "\$@"\s*$/m);
+  });
+
+  test("lists top-level subcommands with descriptions, sorted alphabetically", () => {
     expect(out).toContain(`'stats:aggregate stats'`);
     expect(out).toContain(`'sessions:sessions group'`);
     expect(out).toContain(`'ping:ping'`);
+    expect(out.indexOf(`'ping:`)).toBeLessThan(out.indexOf(`'sessions:`));
+    expect(out.indexOf(`'sessions:`)).toBeLessThan(out.indexOf(`'stats:`));
   });
 
   test("emits choice completion for --mode", () => {
@@ -113,16 +128,43 @@ describe("buildZshCompletion", () => {
   test("handles a no-option subcommand with _message", () => {
     expect(out).toContain(`_message 'no options'`);
   });
+
+  test("escapes single-quote in descriptions via '\\'' instead of dropping", () => {
+    const program = new Command();
+    program.name("xcli");
+    program.command("foo").description("it's a thing").option("--bar", "don't break me");
+    const z = buildZshCompletion(flattenCommands(program), "xcli");
+    expect(z).toContain(`'foo:it'\\''s a thing'`);
+    expect(z).toContain(`'--bar[don'\\''t break me]'`);
+  });
+
+  test("escapes ] in description so it doesn't close the bracketed spec early", () => {
+    const program = new Command();
+    program.name("xcli");
+    program.command("foo").option("--baz", "label [closed]");
+    const z = buildZshCompletion(flattenCommands(program), "xcli");
+    expect(z).toContain(`'--baz[label [closed\\]]'`);
+  });
+
+  test("escapes single-quote inside choices", () => {
+    const program = new Command();
+    program.name("xcli");
+    program.command("foo").addOption(new Option("--m <m>", "mode").choices(["a", "b'c"]));
+    const z = buildZshCompletion(flattenCommands(program), "xcli");
+    expect(z).toContain(`'--m[mode]:value:(a b'\\''c)'`);
+  });
 });
 
 describe("buildFishCompletion", () => {
   const out = buildFishCompletion(flattenCommands(makeProgram()), "xcli");
 
-  test("emits use_subcommand entries for top level", () => {
+  test("emits use_subcommand entries for top level, sorted alphabetically", () => {
+    expect(out).toContain(`complete -c xcli -n '__fish_use_subcommand' -a ping -d 'ping'`);
     expect(out).toContain(
       `complete -c xcli -n '__fish_use_subcommand' -a stats -d 'aggregate stats'`,
     );
-    expect(out).toContain(`complete -c xcli -n '__fish_use_subcommand' -a sessions`);
+    expect(out.indexOf(`-a ping`)).toBeLessThan(out.indexOf(`-a sessions`));
+    expect(out.indexOf(`-a sessions`)).toBeLessThan(out.indexOf(`-a stats`));
   });
 
   test("emits seen_subcommand_from entries for nested sessions list", () => {
@@ -136,5 +178,17 @@ describe("buildFishCompletion", () => {
     expect(out).toContain(
       `complete -c xcli -n '__fish_seen_subcommand_from stats' -l mode -d 'mode' -x -a 'a b'`,
     );
+  });
+
+  test("conditions go through single-quote escaping so a `'` in a subcommand name doesn't break the script", () => {
+    // Subcommand names from commander are usually ASCII, but option conditions
+    // are constructed strings — defensively quote them.
+    const program = new Command();
+    program.name("xcli");
+    program.command("foo").option("--bar", "desc with ' quote");
+    const f = buildFishCompletion(flattenCommands(program), "xcli");
+    // The condition itself is plain (no apostrophe), but the description has
+    // one and must be escaped fish-style as `\'`.
+    expect(f).toContain(`-d 'desc with \\' quote'`);
   });
 });

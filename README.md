@@ -171,28 +171,29 @@ and adds value-list completion for `--source` / `--mode` style choices (zsh
 and fish; bash gets flag-name completion only). Session-id / file-path dynamic
 completion is intentionally out of scope.
 
-Install (one-shot, completion loaded on every shell):
+Install (file-based — user-writable paths):
 
 ```bash
-# bash (system-wide)
-cchist completion bash > /etc/bash_completion.d/cchist
-
-# bash (per-user)
+# bash (per-user, XDG)
 mkdir -p ~/.local/share/bash-completion/completions
 cchist completion bash > ~/.local/share/bash-completion/completions/cchist
 
-# zsh — pick the first user-writable dir in $fpath
-cchist completion zsh > "${fpath[1]}/_cchist" && compinit
+# zsh — user fpath, set up once in ~/.zshrc before `compinit`
+mkdir -p ~/.zsh/completions
+cchist completion zsh > ~/.zsh/completions/_cchist
+# then add this to ~/.zshrc *before* `compinit`:
+#   fpath=(~/.zsh/completions $fpath)
 
 # fish
 cchist completion fish > ~/.config/fish/completions/cchist.fish
 ```
 
-Install (eval on shell init, no file):
+Install (eval on shell init — no file):
 
 ```bash
 echo 'source <(cchist completion bash)' >> ~/.bashrc
 echo 'source <(cchist completion zsh)'  >> ~/.zshrc
+echo 'cchist completion fish | source'  >> ~/.config/fish/config.fish
 ```
 
 ### Excluding noise sessions
