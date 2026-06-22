@@ -9,14 +9,33 @@ break stats down by day / repo / model — all with `--json` for piping.
 
 ## Install
 
-### Prebuilt binary (no Bun needed)
+### One-liner (recommended)
 
-Each tagged release publishes standalone binaries (Bun runtime embedded) for
-linux-x64 / linux-arm64 / darwin-arm64 / darwin-x64 on the
-[Releases](https://github.com/TakashiAihara/cchist/releases) page:
+Auto-detects your OS/arch and installs the latest prebuilt binary into
+`~/.local/bin`:
 
 ```bash
-# pick the asset for your platform, e.g. linux-x64
+curl -fsSL https://raw.githubusercontent.com/TakashiAihara/cchist/main/install.sh | sh
+```
+
+Env overrides:
+
+- `CCHIST_VERSION=v0.1.0` — install a specific tag (default: `latest`).
+  Bare `0.1.0` is also accepted; the `v` prefix is added automatically.
+- `CCHIST_INSTALL_DIR=/usr/local/bin` — install into a different dir
+  (default: `~/.local/bin`).
+
+The installer is a POSIX `sh` script; pipe it through `cat` first if you want to
+read it before running.
+
+### Prebuilt binary (manual)
+
+If you prefer not to pipe a script, grab the asset for your platform directly
+from the [Releases](https://github.com/TakashiAihara/cchist/releases) page
+(linux-x64 / linux-arm64 / darwin-arm64 / darwin-x64) — the binary embeds the
+Bun runtime, no Bun install needed:
+
+```bash
 curl -fsSL -o cchist https://github.com/TakashiAihara/cchist/releases/latest/download/cchist-linux-x64
 chmod +x cchist && mv cchist ~/.local/bin/   # or any dir on PATH
 ```
@@ -143,3 +162,17 @@ reported on stderr and ignored).
 See [`docs/design/cchist.md`](docs/design/cchist.md) for the data model, command
 surface, and the alternatives that were considered. Cost estimation is a planned
 phase-2 feature (needs a verified per-model pricing table).
+
+## Release (maintainer)
+
+The CLI version is sourced from `package.json` (`src/index.ts` imports it
+directly, so the compiled binary stays in sync). Cutting a release is:
+
+```bash
+bun pm version patch          # also: minor | major | 1.2.3
+                              # bumps package.json, creates a commit + git tag
+git push --follow-tags        # push commits and the new tag together
+```
+
+The `tags: v*` trigger in `.github/workflows/release.yml` then builds the
+matrix of binaries and creates the GitHub Release.

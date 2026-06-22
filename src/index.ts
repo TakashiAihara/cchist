@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander";
+import pkg from "../package.json" with { type: "json" };
 import { sessionsList, sessionsLatest } from "./commands/sessions";
 import { show } from "./commands/show";
 import { path } from "./commands/path";
@@ -19,7 +20,7 @@ const program = new Command();
 program
   .name("cchist")
   .description("Inspect & analyze Claude Code session history (JSONL)")
-  .version("0.1.0");
+  .version(pkg.version);
 
 /** commander collector for repeatable options. */
 function collect(value: string, acc: string[]): string[] {
