@@ -81,6 +81,8 @@ cchist commands [--top 30] [--skills-only] [--source slash|tool|all]   # slash +
 cchist search <query>                              # full-text search across prompts & messages
 cchist search "rebase" --role user --since 2026-06-01
 cchist search "TODO\\(\\w+\\)" --regex --thinking --json
+
+cchist completion <bash|zsh|fish>                  # print a shell completion script
 ```
 
 ### `search`
@@ -160,6 +162,38 @@ cchist tools
   (defaults to `~/.claude/projects`).
 - `CCHIST_CONFIG` overrides the config file path (defaults to
   `$XDG_CONFIG_HOME/cchist/config.json`, i.e. `~/.config/cchist/config.json`).
+
+### Shell completion
+
+`cchist completion <bash|zsh|fish>` prints a static completion script for the
+chosen shell to stdout. It enumerates all subcommands and their option flags,
+and adds value-list completion for `--source` / `--mode` style choices (zsh
+and fish; bash gets flag-name completion only). Session-id / file-path dynamic
+completion is intentionally out of scope.
+
+Install (one-shot, completion loaded on every shell):
+
+```bash
+# bash (system-wide)
+cchist completion bash > /etc/bash_completion.d/cchist
+
+# bash (per-user)
+mkdir -p ~/.local/share/bash-completion/completions
+cchist completion bash > ~/.local/share/bash-completion/completions/cchist
+
+# zsh — pick the first user-writable dir in $fpath
+cchist completion zsh > "${fpath[1]}/_cchist" && compinit
+
+# fish
+cchist completion fish > ~/.config/fish/completions/cchist.fish
+```
+
+Install (eval on shell init, no file):
+
+```bash
+echo 'source <(cchist completion bash)' >> ~/.bashrc
+echo 'source <(cchist completion zsh)'  >> ~/.zshrc
+```
 
 ### Excluding noise sessions
 

@@ -52,6 +52,7 @@ cchist files  [--top N] [--since D] [--local] [--json]            # 編集ファ
 cchist activity [--since D] [--local] [--json]                    # active 時間 + 時間帯ヒストグラム
 cchist commands [--top N] [--skills-only] [--source slash|tool|all] [--since D] [--local] [--json]   # slash command / Skill tool 利用頻度
 cchist search <q> [--regex] [--case] [--role R] [--thinking] [--context N] [--limit N] [--session ID] [--group] [--hits-per N] [filters] [--json]
+cchist completion <bash|zsh|fish>
 ```
 
 ## skill / command 集計の dual-source
@@ -122,6 +123,25 @@ src/commands/*.ts     各サブコマンド (parse 層の上の集計に専念)
 - claude-config bin/ に同梱: PATH・同期は楽だが「ツールとして仕上げる」スコープに対し手狭。独立 repo を採用。
 - 言語: Bun + TypeScript (CLAUDE.md 第一選択。`bun run` で .ts 直接実行、commander 流用)。
   配布バイナリ単体化が要件化したら Rust/Go を再検討。
+
+## shell 補完 (completion)
+
+`cchist completion <bash|zsh|fish>` で補完スクリプトを stdout に吐く。
+
+- 生成は commander の introspection (`Command.commands` / `Command.options`)
+  を walk する pure 関数 (`src/lib/completion.ts`) に閉じる。`Command.options`
+  から `flags / long / short / description / argChoices` を読み、CommandInfo
+  リストに正規化してから shell 別 generator (`buildBashCompletion` /
+  `buildZshCompletion` / `buildFishCompletion`) に渡す。
+- 静的補完のみ (動的補完 = session id や file path は将来の拡張)。
+- choices ( `.choices([...])` で定義) は zsh の `:(a b c)` と fish の `-x -a`
+  で値リスト補完まで生成。bash 側は flag 名だけ。
+- commander v14 は built-in completion 生成を持たないため (deepwiki で確認済)
+  外部 dep (omelette / tabtab) を入れず自前生成する方針。
+
+generator は CLI 配線 (commander program) と完全に切り離してテスト可能に
+してあり、test/completion.test.ts では synthetic な小さな program で
+flatten / 3 shell の出力をユニットテストする。
 
 ## 配布 (Distribution)
 

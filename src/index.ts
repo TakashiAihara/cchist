@@ -14,6 +14,7 @@ import { search } from "./commands/search";
 import { commands } from "./commands/commands";
 import { outline } from "./commands/outline";
 import { read } from "./commands/read";
+import { completion } from "./commands/completion";
 
 const program = new Command();
 
@@ -212,6 +213,30 @@ program
   .option("--thinking", "include thinking blocks")
   .option("--json", "machine-readable output")
   .action(read);
+
+program
+  .command("completion")
+  .argument("<shell>", "target shell: bash, zsh, or fish")
+  .description("print a shell completion script for cchist")
+  .addHelpText(
+    "after",
+    `
+Install (one-shot):
+  bash:   cchist completion bash > /etc/bash_completion.d/cchist  # or ~/.local/share/bash-completion/completions/cchist
+  zsh:    cchist completion zsh  > "\${fpath[1]}/_cchist" && compinit
+  fish:   cchist completion fish > ~/.config/fish/completions/cchist.fish
+
+Install (eval-on-shell-init):
+  bash:   echo 'source <(cchist completion bash)' >> ~/.bashrc
+  zsh:    echo 'source <(cchist completion zsh)'  >> ~/.zshrc`,
+  )
+  .action((shell: string) => {
+    if (shell !== "bash" && shell !== "zsh" && shell !== "fish") {
+      console.error(`unsupported shell: ${shell} (expected bash, zsh, or fish)`);
+      process.exit(2);
+    }
+    completion(shell, program);
+  });
 
 program.parseAsync().catch((e) => {
   console.error(e instanceof Error ? e.message : e);
