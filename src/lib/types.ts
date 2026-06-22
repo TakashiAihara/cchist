@@ -26,6 +26,13 @@ export type SessionMeta = {
   usage: Usage;
   blocks: { text: number; thinking: number; toolUse: number };
   tools: Record<string, number>;
+  // Per-skill counts derived ONLY from Skill tool_use blocks whose `input.skill`
+  // is a string. This is a *partial* decomposition of `tools.Skill`:
+  //   Σ skills[*] ≤ tools.Skill
+  // Skill tool_use blocks lacking a usable `input.skill` stay in `tools.Skill`
+  // but never reach `skills`; consumers that want totals to add up should add a
+  // `Skill:?` bucket for `tools.Skill − Σ skills[*]` (as `cchist tools --expand-skills` does).
+  skills: Record<string, number>;
 };
 
 export type CommonFilter = {

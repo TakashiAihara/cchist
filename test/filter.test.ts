@@ -22,6 +22,7 @@ function meta(over: Partial<SessionMeta>): SessionMeta {
     usage: emptyUsage(),
     blocks: { text: 0, thinking: 0, toolUse: 0 },
     tools: {},
+    skills: {},
     ...over,
   };
 }

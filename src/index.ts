@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import pkg from "../package.json" with { type: "json" };
 import { sessionsList, sessionsLatest } from "./commands/sessions";
 import { show } from "./commands/show";
@@ -108,6 +108,7 @@ addExclude(
   program
     .command("tools")
     .description("tool usage frequency across sessions")
+    .option("--expand-skills", "break Skill into per-skill rows (Skill:<name>)")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
     .option("--since <date>", "only sessions active on/after this date (ISO)")
@@ -150,9 +151,20 @@ addExclude(
 addExclude(
   program
     .command("commands")
-    .description("slash-command / skill usage frequency (typed /commands)")
+    .description("slash-command / skill usage frequency (typed slash + Skill tool_use)")
     .option("--top <n>", "max rows", "30")
-    .option("--skills-only", "exclude built-in commands (clear/model/...), keep namespaced skills")
+    .option(
+      "--skills-only",
+      "exclude built-in commands (clear/model/...), keep namespaced skills (slash only; --source tool is already skill-only)",
+    )
+    .addOption(
+      new Option(
+        "--source <where>",
+        "count from: typed slash (<command-name>), Skill tool_use, or both",
+      )
+        .choices(["slash", "tool", "all"])
+        .default("all"),
+    )
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
     .option("--since <date>", "only sessions active on/after this date (ISO)")

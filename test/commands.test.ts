@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { extractCommandNames, isSkillCommand } from "../src/commands/commands";
+import {
+  extractCommandNames,
+  extractSkillToolInvocations,
+  isSkillCommand,
+} from "../src/commands/commands";
 
 describe("extractCommandNames", () => {
   const user = (content: any) => ({ type: "user", message: { role: "user", content } });
@@ -31,6 +35,57 @@ describe("extractCommandNames", () => {
 
   test("ignores an empty command tag", () => {
     expect(extractCommandNames(user("<command-name></command-name>"))).toEqual([]);
+  });
+});
+
+describe("extractSkillToolInvocations", () => {
+  const assistant = (content: any) => ({
+    type: "assistant",
+    message: { role: "assistant", content },
+  });
+
+  test("pulls input.skill from a Skill tool_use block", () => {
+    const rec = assistant([
+      { type: "tool_use", name: "Skill", input: { skill: "ta.session.wrap-up" } },
+    ]);
+    expect(extractSkillToolInvocations(rec)).toEqual(["ta.session.wrap-up"]);
+  });
+
+  test("collects multiple Skill invocations in one message", () => {
+    const rec = assistant([
+      { type: "tool_use", name: "Skill", input: { skill: "a.b" } },
+      { type: "text", text: "thinking..." },
+      { type: "tool_use", name: "Skill", input: { skill: "c.d" } },
+    ]);
+    expect(extractSkillToolInvocations(rec)).toEqual(["a.b", "c.d"]);
+  });
+
+  test("ignores non-Skill tool_use blocks", () => {
+    const rec = assistant([
+      { type: "tool_use", name: "Bash", input: { command: "ls" } },
+      { type: "tool_use", name: "Skill", input: { skill: "x.y" } },
+    ]);
+    expect(extractSkillToolInvocations(rec)).toEqual(["x.y"]);
+  });
+
+  test("skips Skill blocks missing or wrongly typed input.skill", () => {
+    const rec = assistant([
+      { type: "tool_use", name: "Skill", input: {} },
+      { type: "tool_use", name: "Skill", input: { skill: 42 } },
+      { type: "tool_use", name: "Skill", input: { skill: "   " } }, // whitespace only
+      { type: "tool_use", name: "Skill", input: { skill: "ok" } },
+    ]);
+    expect(extractSkillToolInvocations(rec)).toEqual(["ok"]);
+  });
+
+  test("returns [] for non-assistant records", () => {
+    expect(extractSkillToolInvocations({ type: "user", message: { content: "hello" } })).toEqual(
+      [],
+    );
+  });
+
+  test("returns [] when content isn't an array", () => {
+    expect(extractSkillToolInvocations(assistant("plain string"))).toEqual([]);
   });
 });
 
