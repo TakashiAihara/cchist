@@ -149,7 +149,14 @@ export function search(query: string, opts: Opts): void {
 
   if (opts.group) {
     const groups = groupBySession(hits);
-    if (opts.json) return json(groups);
+    if (opts.json) {
+      json(groups);
+      // Even with --json, the documented convention is `no match → exit 2`.
+      // Emit the (empty) JSON to stdout first so jq/etc. callers don't crash,
+      // then signal NOT_FOUND so scripts can branch on the exit code.
+      if (!groups.length) throw notFound("no matches");
+      return;
+    }
     if (!groups.length) {
       throw notFound("no matches");
     }
@@ -164,7 +171,13 @@ export function search(query: string, opts: Opts): void {
     return;
   }
 
-  if (opts.json) return json(hits);
+  if (opts.json) {
+    json(hits);
+    // Same as --group above: emit `[]` for valid JSON output, then signal
+    // NOT_FOUND via the exit code so scripts can branch on it.
+    if (!hits.length) throw notFound("no matches");
+    return;
+  }
 
   if (!hits.length) {
     throw notFound("no matches");

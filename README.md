@@ -203,18 +203,37 @@ kind:
 
 | Code | Name           | When |
 |-----:|----------------|------|
-| 0    | `OK`           | success |
+| 0    | `OK`           | success (including aggregation commands that return zero rows — see below) |
 | 1    | `ERROR`        | unexpected / generic failure |
-| 2    | `NOT_FOUND`    | requested target absent — session id doesn't match, `latest` finds nothing, **`search` produces zero matches**, `read` ranges select no messages |
-| 3    | `INVALID_INPUT`| user input malformed — bad message range, unsupported `--source` / shell value, bad date |
+| 2    | `NOT_FOUND`    | requested **target** absent — session id doesn't match, `sessions latest` finds nothing, **`search` produces zero matches**, `read` ranges select no messages, `path` has no recorded cwd |
+| 3    | `INVALID_INPUT`| user input malformed — bad message range, unsupported `--source` / shell value, unparseable `--since` date |
+
+#### "Zero results" is not always NOT_FOUND
+
+cchist splits commands into two families that handle empty results differently:
+
+- **Target commands** (`show` / `path` / `outline` / `read` / `sessions latest` /
+  `search`) ask for a specific thing. "Not present" → exit 2.
+- **Aggregation commands** (`sessions list` / `stats` / `tokens` / `tools` /
+  `bash` / `files` / `activity` / `commands`) summarize whatever the filters
+  match. An empty result is a *valid* summary (the answer is "zero"), so they
+  exit 0 with an empty table. `--json` returns `[]` / `{}`.
+
+`search --json` follows the target-command rule even on `--json`: it emits
+`[]` to stdout so `jq` doesn't crash, and *also* exits 2, so scripts can
+branch on the exit code without parsing the JSON.
 
 Breaking change vs pre-0.2 behavior: `cchist search foo` used to exit 0 with
 `no matches` on stderr; it now exits 2. Update scripts like
-`if cchist search foo; then ...` to inspect the exit code (`grep`-style
-convention — but cchist uses 2 not 1, reserving 1 for actually-broken runs).
+`if cchist search foo; then ...` to inspect the exit code. (grep uses exit 1
+for no-match; cchist uses 2, keeping 1 reserved for "actually broken runs".)
 
 All non-OK paths write a `cchist: <message>` line to stderr. Stdout stays
 clean so it's still safe to pipe into other tools.
+
+Commander's own usage errors (unknown subcommand, missing required argument)
+still use commander's `error: ...` prefix and exit 1 — they're outside cchist's
+domain error map. The codes above only apply to cchist's own runtime checks.
 
 ### Excluding noise sessions
 
