@@ -1,7 +1,8 @@
 import { basename } from "node:path";
 import { iterFiltered, readRecords } from "../lib/records";
 import { resolveSessionFile } from "../lib/discover";
-import { table, trunc, json, log } from "../lib/format";
+import { notFound } from "../lib/errors";
+import { table, trunc, json } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
 type Opts = CommonFilter & {
@@ -120,8 +121,7 @@ export function search(query: string, opts: Opts): void {
   if (opts.session) {
     const file = resolveSessionFile(opts.session);
     if (!file) {
-      log(`session not found: ${opts.session}`);
-      process.exit(1);
+      throw notFound(`session not found: ${opts.session}`);
     }
     sources = [{ file, recs: readRecords(file) }];
   } else {
@@ -149,10 +149,16 @@ export function search(query: string, opts: Opts): void {
 
   if (opts.group) {
     const groups = groupBySession(hits);
-    if (opts.json) return json(groups);
-    if (!groups.length) {
-      console.error("no matches");
+    if (opts.json) {
+      json(groups);
+      // Even with --json, the documented convention is `no match → exit 2`.
+      // Emit the (empty) JSON to stdout first so jq/etc. callers don't crash,
+      // then signal NOT_FOUND so scripts can branch on the exit code.
+      if (!groups.length) throw notFound("no matches");
       return;
+    }
+    if (!groups.length) {
+      throw notFound("no matches");
     }
     const hitsPer = opts.hitsPer ? parseInt(opts.hitsPer, 10) : 2;
     for (const g of groups) {
@@ -165,11 +171,16 @@ export function search(query: string, opts: Opts): void {
     return;
   }
 
-  if (opts.json) return json(hits);
+  if (opts.json) {
+    json(hits);
+    // Same as --group above: emit `[]` for valid JSON output, then signal
+    // NOT_FOUND via the exit code so scripts can branch on it.
+    if (!hits.length) throw notFound("no matches");
+    return;
+  }
 
   if (!hits.length) {
-    console.error("no matches");
-    return;
+    throw notFound("no matches");
   }
 
   console.log(

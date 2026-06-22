@@ -15,6 +15,7 @@ import { commands } from "./commands/commands";
 import { outline } from "./commands/outline";
 import { read } from "./commands/read";
 import { completion } from "./commands/completion";
+import { AppError, EXIT, invalidInput } from "./lib/errors";
 
 const program = new Command();
 
@@ -237,13 +238,18 @@ Install (eval on shell init — no file):
   )
   .action((shell: string) => {
     if (shell !== "bash" && shell !== "zsh" && shell !== "fish") {
-      console.error(`unsupported shell: ${shell} (expected bash, zsh, or fish)`);
-      process.exit(2);
+      throw invalidInput(`unsupported shell: ${shell} (expected bash, zsh, or fish)`);
     }
     completion(shell, program);
   });
 
-program.parseAsync().catch((e) => {
-  console.error(e instanceof Error ? e.message : e);
-  process.exit(1);
+program.parseAsync().catch((e: unknown) => {
+  // AppError carries an intended exit code; everything else gets a generic 1
+  // so callers can still branch on "something went wrong" reliably.
+  if (e instanceof AppError) {
+    console.error(`cchist: ${e.message}`);
+    process.exit(e.exitCode);
+  }
+  console.error(`cchist: ${e instanceof Error ? e.message : String(e)}`);
+  process.exit(EXIT.ERROR);
 });

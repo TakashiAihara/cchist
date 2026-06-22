@@ -1,7 +1,8 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { listSessionFiles } from "../lib/discover";
-import { json, log } from "../lib/format";
+import { notFound } from "../lib/errors";
+import { json } from "../lib/format";
 
 type ShowOpts = { tools?: boolean; thinking?: boolean; json?: boolean };
 
@@ -28,8 +29,7 @@ function textOf(content: unknown): string {
 export function show(idOrLatest: string, opts: ShowOpts): void {
   const file = resolveFile(idOrLatest);
   if (!file) {
-    log(`session not found: ${idOrLatest}`);
-    process.exit(1);
+    throw notFound(`session not found: ${idOrLatest}`);
   }
   const recs = readFileSync(file, "utf8")
     .split("\n")

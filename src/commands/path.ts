@@ -1,7 +1,8 @@
 import { basename } from "node:path";
 import { listSessionFiles } from "../lib/discover";
+import { notFound } from "../lib/errors";
 import { parseSession } from "../lib/parse";
-import { json, log } from "../lib/format";
+import { json } from "../lib/format";
 
 type PathOpts = { json?: boolean };
 
@@ -25,8 +26,7 @@ export function path(idOrLatest: string, opts: PathOpts): void {
     }
   }
   if (!file) {
-    log(`session not found: ${idOrLatest}`);
-    process.exit(1);
+    throw notFound(`session not found: ${idOrLatest}`);
   }
 
   const m = parseSession(file);
@@ -34,8 +34,7 @@ export function path(idOrLatest: string, opts: PathOpts): void {
     return json({ id: m.id, cwd: m.cwd, gitBranch: m.gitBranch, file: m.file });
   }
   if (!m.cwd) {
-    log("no cwd recorded in this session");
-    process.exit(1);
+    throw notFound("no cwd recorded in this session");
   }
   console.log(m.cwd);
 }

@@ -56,8 +56,11 @@ describe("applyFilter", () => {
     expect(applyFilter(metas, { since: "2026-06-05" }).map((m) => m.id)).toEqual(["b"]);
   });
 
-  test("ignores an unparseable since value", () => {
-    expect(applyFilter(metas, { since: "not-a-date" }).map((m) => m.id)).toEqual(["a", "b", "c"]);
+  test("rejects an unparseable since value with invalidInput (was silently no-op before)", () => {
+    // Prior behavior silently kept all rows when --since couldn't be parsed,
+    // which masked typos as "no filtering" — now we throw an AppError so the
+    // CLI top-level catch can map it to exit 3 (INVALID_INPUT).
+    expect(() => applyFilter(metas, { since: "not-a-date" })).toThrow(/invalid --since/);
   });
 
   test("excludes by cwd glob", () => {
