@@ -9,6 +9,20 @@ break stats down by day / repo / model — all with `--json` for piping.
 
 ## Install
 
+### Prebuilt binary (no Bun needed)
+
+Each tagged release publishes standalone binaries (Bun runtime embedded) for
+linux-x64 / linux-arm64 / darwin-arm64 / darwin-x64 on the
+[Releases](https://github.com/TakashiAihara/cchist/releases) page:
+
+```bash
+# pick the asset for your platform, e.g. linux-x64
+curl -fsSL -o cchist https://github.com/TakashiAihara/cchist/releases/latest/download/cchist-linux-x64
+chmod +x cchist && mv cchist ~/.local/bin/   # or any dir on PATH
+```
+
+### From source (Bun)
+
 ```bash
 ghq get github.com/TakashiAihara/cchist
 cd ~/.ghq/github.com/TakashiAihara/cchist
@@ -16,9 +30,12 @@ bun install
 # put it on PATH:
 bun link            # exposes `cchist`
 # or symlink src/index.ts into a bin dir already on PATH
+# or build your own binary:
+bun build src/index.ts --compile --outfile cchist
 ```
 
-Requires [Bun](https://bun.sh) (pinned via `.mise.toml`).
+Running from source requires [Bun](https://bun.sh) (pinned via `.mise.toml`); the
+prebuilt binaries do not.
 
 ## Usage
 
