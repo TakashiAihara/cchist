@@ -85,6 +85,18 @@ cchist search "TODO\\(\\w+\\)" --regex --thinking --json
 cchist completion <bash|zsh|fish>                  # print a shell completion script
 ```
 
+### Session ids
+
+Session ids are printed in full (the 36-char uuid) everywhere — `sessions list`,
+`stats --by session`, `search`, `search --group` — so the value on screen can be
+pasted straight into another subcommand. Nothing abbreviates them to a prefix.
+
+Anywhere an `<id>` is taken (`show`, `path`, `outline`, `read`, `search
+--session`) a unique prefix works too, and the literal `latest` is the most
+recently modified session file. `latest` there is a plain lookup — the common
+filters are not consulted. To pick the newest session in a given scope, resolve
+it first: `cchist show "$(cchist sessions latest --local)"`.
+
 ### `search`
 
 Substring by default (case-insensitive); add `--regex` for a regular expression
