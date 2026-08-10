@@ -9,6 +9,8 @@ import { search } from "../src/commands/search";
 // Full 36-char uuid: the point of these tests is that it is never abbreviated
 // in human-readable output (it has to be copy-pasteable into `read`/`outline`).
 const ID = "01234567-89ab-cdef-0123-456789abcdef";
+// longer than the 30-char column budget, so the repo column really truncates
+const CWD = "/home/dev/.repodirs/github.com/example-org/example-repo";
 
 let root: string;
 let prevProjects: string | undefined;
@@ -32,13 +34,13 @@ beforeAll(() => {
     [
       JSON.stringify({
         type: "user",
-        cwd: "/home/dev/demo",
+        cwd: CWD,
         timestamp: "2026-08-10T01:02:03.000Z",
         message: { role: "user", content: "needle in a haystack" },
       }),
       JSON.stringify({
         type: "assistant",
-        cwd: "/home/dev/demo",
+        cwd: CWD,
         timestamp: "2026-08-10T01:02:04.000Z",
         message: {
           role: "assistant",
@@ -103,10 +105,12 @@ describe("session ids are printed in full", () => {
 });
 
 describe("non-id columns still get truncated", () => {
-  test("stats --by repo keeps the long-cwd ellipsis", () => {
+  test("stats --by repo left-truncates a long cwd", () => {
     captureLog();
     stats({ by: "repo" });
-    // 30-char budget for a repo path -> left-truncated with an ellipsis
-    expect(lines.join("\n")).toContain("/home/dev/demo");
+    const out = lines.join("\n");
+    // 30-char budget for a repo path -> "…" + the trailing 29 chars
+    expect(out).toContain("…" + CWD.slice(-29));
+    expect(out).not.toContain(CWD);
   });
 });
