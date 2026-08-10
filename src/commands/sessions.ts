@@ -16,7 +16,7 @@ export function sessionsList(opts: ListOpts): void {
   if (opts.json) return json(metas);
 
   const rows = metas.map((m) => [
-    m.id.slice(0, 8),
+    m.id,
     m.lastTs?.replace("T", " ").slice(0, 16) ?? "-",
     trunc(m.cwd ?? "-", 28, "left"),
     String(m.userTurns),
