@@ -24,7 +24,7 @@ function keyOf(m: SessionMeta, by: string): string {
     case "model":
       return m.models.join(",") || "?";
     default:
-      return m.id.slice(0, 8);
+      return m.id;
   }
 }
 
@@ -59,7 +59,9 @@ export function stats(opts: StatsOpts): void {
   if (opts.json) return json(rows);
 
   const t = rows.map((g) => [
-    trunc(g.key, 30, by === "repo" ? "left" : "right"),
+    // session ids are printed in full so they can be copy-pasted into other
+    // subcommands; only the free-form keys (repo path, model list) get truncated.
+    by === "session" ? g.key : trunc(g.key, 30, by === "repo" ? "left" : "right"),
     String(g.sessions),
     String(g.turns),
     fmtK(g.input),

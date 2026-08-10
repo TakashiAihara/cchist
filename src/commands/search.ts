@@ -162,7 +162,7 @@ export function search(query: string, opts: Opts): void {
     }
     const hitsPer = opts.hitsPer ? parseInt(opts.hitsPer, 10) : 2;
     for (const g of groups) {
-      console.log(`\n\x1b[1m${g.id.slice(0, 8)}\x1b[0m  ${g.count} hit${g.count > 1 ? "s" : ""}`);
+      console.log(`\n\x1b[1m${g.id}\x1b[0m  ${g.count} hit${g.count > 1 ? "s" : ""}`);
       for (const h of g.hits.slice(0, hitsPer)) {
         const ts = h.ts ? h.ts.replace("T", " ").slice(0, 16) : "-";
         console.log(`  ${ts}  ${h.role}  ${trunc(h.excerpt, 90)}`);
@@ -187,7 +187,7 @@ export function search(query: string, opts: Opts): void {
     table(
       ["session", "when", "role", "match"],
       hits.map((h) => [
-        h.id.slice(0, 8),
+        h.id,
         h.ts ? h.ts.replace("T", " ").slice(0, 16) : "-",
         h.role,
         trunc(h.excerpt, 90),
