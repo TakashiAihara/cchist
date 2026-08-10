@@ -92,8 +92,10 @@ Session ids are printed in full (the 36-char uuid) everywhere — `sessions list
 pasted straight into another subcommand. Nothing abbreviates them to a prefix.
 
 Anywhere an `<id>` is taken (`show`, `path`, `outline`, `read`, `search
---session`) a unique prefix works too, and the literal `latest` resolves to the
-most recent session that passes the filters.
+--session`) a unique prefix works too, and the literal `latest` is the most
+recently modified session file. `latest` there is a plain lookup — the common
+filters are not consulted. To pick the newest session in a given scope, resolve
+it first: `cchist show "$(cchist sessions latest --local)"`.
 
 ### `search`
 
