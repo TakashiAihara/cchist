@@ -1,6 +1,6 @@
 {
   "name": "cchist",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Non-interactive CLI to inspect and analyze Claude Code session history (JSONL)",
   "type": "module",
   "bin": {
