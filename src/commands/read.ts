@@ -14,6 +14,7 @@ type Opts = {
   toolResults?: boolean;
   thinking?: boolean;
   truncate?: string;
+  focus?: string[];
 };
 
 /** Render one message to a string honoring the include flags. */
@@ -48,6 +49,12 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     }
     ranges.push(r);
   }
+  const focus: Range[] = [];
+  for (const a of opts.focus ?? []) {
+    const r = parseRange(a);
+    if (!r) throw invalidInput(`invalid --focus: ${a} (use m3, 3, m3..m7, 3..7 or m3.q1)`);
+    focus.push(r);
+  }
   const cut = opts.truncate === undefined ? null : intOption(opts.truncate, "--truncate", 0);
   // --json always carries tool result text, so only plain output can have nothing to cut
   if (cut !== null && !opts.json && !opts.tools && !opts.toolResults) {
@@ -67,7 +74,9 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
   }
 
   const all = messagesFromRecords(readRecords(file));
-  const selected = all.filter((m) => inAnyRange(m.index, ranges, m.queued));
+  const focused = (m: Msg) => focus.length > 0 && inAnyRange(m.index, focus, m.queued);
+  // a focused message is read even when it lies outside the ranges
+  const selected = all.filter((m) => inAnyRange(m.index, ranges, m.queued) || focused(m));
 
   if (opts.json) {
     return json(
@@ -89,10 +98,13 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     );
   }
 
+  if (!selected.length) throw notFound("no messages in the given range(s)");
+  const blocks = selected.map((m) => renderMsg(m, opts, cut));
+  if (focus.length) return printFocused(selected, blocks, focused, budget);
+
   let spent = 0;
   let shown = 0;
-  for (const m of selected) {
-    const block = renderMsg(m, opts, cut);
+  for (const block of blocks) {
     spent += approxTokens(block);
     if (spent > budget && shown > 0) {
       console.log(
@@ -103,5 +115,43 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     console.log((shown ? "\n" : "") + block);
     shown++;
   }
-  if (!shown) throw notFound("no messages in the given range(s)");
+}
+
+/**
+ * `--focus`: the focused messages are always printed, then the budget left over
+ * goes to the others in order. Output keeps file order, with a marker where the
+ * budget skipped messages.
+ */
+function printFocused(
+  msgs: Msg[],
+  blocks: string[],
+  focused: (m: Msg) => boolean,
+  budget: number,
+): void {
+  const keep = msgs.map(focused);
+  let spent = blocks.reduce((s, b, i) => s + (keep[i] ? approxTokens(b) : 0), 0);
+  for (let i = 0; i < blocks.length; i++) {
+    if (keep[i]) continue;
+    const cost = approxTokens(blocks[i]!);
+    if (spent + cost > budget) break;
+    spent += cost;
+    keep[i] = true;
+  }
+  let skipped = 0;
+  let first = true;
+  const flush = () => {
+    if (!skipped) return;
+    console.log(
+      `${first ? "" : "\n"}… (${skipped} message${skipped > 1 ? "s" : ""} skipped by the budget)`,
+    );
+    first = false;
+    skipped = 0;
+  };
+  blocks.forEach((b, i) => {
+    if (!keep[i]) return void skipped++;
+    flush();
+    console.log((first ? "" : "\n") + b);
+    first = false;
+  });
+  flush();
 }
