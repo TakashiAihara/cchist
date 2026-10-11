@@ -75,8 +75,11 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
 
   const all = messagesFromRecords(readRecords(file));
   const focused = (m: Msg) => focus.length > 0 && inAnyRange(m.index, focus, m.queued);
-  if (focus.length && !all.some(focused)) {
-    throw notFound(`no messages match --focus ${(opts.focus ?? []).join(", ")}`);
+  // each --focus must name a message: one that misses is a typo, not a no-op
+  const missed = focus.findIndex((r) => !all.some((m) => inAnyRange(m.index, [r], m.queued)));
+  if (missed >= 0) {
+    if (opts.json) json([]);
+    throw notFound(`no messages match --focus ${opts.focus![missed]}`);
   }
   // a focused message is read even when it lies outside the ranges
   const selected = all.filter((m) => inAnyRange(m.index, ranges, m.queued) || focused(m));

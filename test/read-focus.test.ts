@@ -60,7 +60,10 @@ describe("read --focus", () => {
 
   test("a --focus that matches no message exits 2, with --json too", () => {
     expect(read(["--focus", "m99"]).code).toBe(2);
-    expect(read(["--focus", "m99", "--json"]).code).toBe(2);
+    const j = read(["--focus", "m99", "--json"]);
+    expect([j.code, JSON.parse(j.out)]).toEqual([2, []]);
+    // one good range does not excuse another that misses
+    expect(read(["--focus", "m1", "--focus", "m99"]).code).toBe(2);
   });
 
   test("ranges that match no message exit 2; --json prints [] first", () => {
