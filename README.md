@@ -79,7 +79,7 @@ cchist bash   [--top 25] [--full]                 # most-used Bash commands
 cchist bash   <id|latest> [--top 25] [--full]     # one session's Bash commands
 cchist bash   --full --json                       # keys are whole commands; the table shows 60 chars
 cchist files  [--top 30]                          # most-edited files
-cchist activity                                    # active time + hour histogram
+cchist activity [--idle-gap 15]                    # active time (idle gaps left out) + hour histogram
 cchist commands [--top 30] [--skills-only] [--source slash|tool|all]   # slash + Skill tool usage
 
 cchist search <query>                              # full-text search across prompts & messages

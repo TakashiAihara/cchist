@@ -177,6 +177,7 @@ addExclude(
   program
     .command("activity")
     .description("active time + hour-of-day histogram")
+    .option("--idle-gap <min>", "a gap of this many minutes or more between records is idle", "15")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
