@@ -4,6 +4,7 @@ import { invalidInput, notFound } from "../lib/errors";
 import { messagesFromRecords, msgLabel, approxTokens, type Msg } from "../lib/messages";
 import { parseRange, inAnyRange, type Range } from "../lib/ranges";
 import { json, fmtTs, clip, clipValues, dropped } from "../lib/format";
+import { intOption } from "../lib/options";
 
 type Opts = {
   json?: boolean;
@@ -58,6 +59,11 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     );
   }
 
+  // validated before the session is read, like the ranges
+  const budget =
+    opts.budget === false
+      ? Infinity
+      : intOption(typeof opts.budget === "string" ? opts.budget : undefined, "--budget", 6000);
   const file = resolveSessionFile(idOrLatest);
   if (!file) {
     throw notFound(`session not found: ${idOrLatest}`);
@@ -86,7 +92,6 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     );
   }
 
-  const budget = opts.budget === false ? Infinity : parseInt(String(opts.budget ?? "6000"), 10);
   let spent = 0;
   let shown = 0;
   for (const m of selected) {

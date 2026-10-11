@@ -5,12 +5,13 @@ import { ownEvents } from "../lib/usage";
 import { withConfigExcludes } from "../lib/config";
 import { notFound } from "../lib/errors";
 import { table, fmtK, trunc, json, fmtTs, oneLine } from "../lib/format";
+import { intOption } from "../lib/options";
 import { type CommonFilter, type SessionMeta, publicMeta } from "../lib/types";
 
 type ListOpts = CommonFilter & { limit?: string; json?: boolean; apiError?: boolean };
 
 export function sessionsList(opts: ListOpts): void {
-  const limit = opts.limit ? parseInt(opts.limit, 10) : 20;
+  const limit = intOption(opts.limit, "--limit", 20);
   const { all, kept } = loadAll(opts);
   // already mtime-desc from discover; --api-error keeps sessions that stopped on one
   const metas = kept.filter((m) => !opts.apiError || m.apiError).slice(0, limit);

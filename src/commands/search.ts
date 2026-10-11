@@ -1,6 +1,7 @@
 import { basename } from "node:path";
 import { iterFiltered, namedSession } from "../lib/records";
-import { invalidInput, notFound } from "../lib/errors";
+import { notFound } from "../lib/errors";
+import { intOption } from "../lib/options";
 import { table, trunc, json, fmtTs, oneLine } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
@@ -118,11 +119,9 @@ export function groupBySession(hits: SearchHit[]): SessionGroup[] {
 export function search(query: string, opts: Opts): void {
   const match = makeMatcher(query, opts);
   const role = opts.role ?? "all";
-  if (opts.context !== undefined && !/^\d+$/.test(opts.context)) {
-    throw invalidInput(`invalid --context: ${opts.context} (use a non-negative integer)`);
-  }
-  const ctx = opts.context ? Number(opts.context) : 60;
-  const limit = opts.limit ? parseInt(opts.limit, 10) : 50;
+  const ctx = intOption(opts.context, "--context", 60, 0);
+  const limit = intOption(opts.limit, "--limit", 50);
+  const hitsPer = intOption(opts.hitsPer, "--hits-per", 2);
 
   // scope: one session (--session) or every session passing the filters
   let sources: Iterable<{ file: string; recs: any[] }>;
@@ -164,7 +163,7 @@ export function search(query: string, opts: Opts): void {
     if (!groups.length) {
       throw notFound("no matches");
     }
-    const hitsPer = opts.hitsPer ? parseInt(opts.hitsPer, 10) : 2;
+
     for (const g of groups) {
       console.log(`\n\x1b[1m${g.id}\x1b[0m  ${g.count} hit${g.count > 1 ? "s" : ""}`);
       for (const h of g.hits.slice(0, hitsPer)) {

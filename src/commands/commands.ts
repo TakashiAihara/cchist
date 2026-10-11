@@ -1,5 +1,6 @@
 import { iterFiltered } from "../lib/records";
 import { table, fmtNum, trunc, json, oneLine } from "../lib/format";
+import { intOption } from "../lib/options";
 import { type CommonFilter } from "../lib/types";
 
 type Source = "slash" | "tool" | "all";
@@ -87,6 +88,7 @@ export function commands(opts: Opts): void {
   // Commander's .default("all") guarantees this is set; the fallback is just
   // for type-safety in tests that call commands() directly without options.
   const source: Source = opts.source ?? "all";
+  const top = intOption(opts.top, "--top", 30);
   const counts = new Map<string, number>();
   for (const { recs } of iterFiltered(opts)) {
     for (const r of recs) {
@@ -100,7 +102,6 @@ export function commands(opts: Opts): void {
     }
   }
 
-  const top = opts.top ? parseInt(opts.top, 10) : 30;
   const rows = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, top);
   if (opts.json) return json(Object.fromEntries(rows));
 
