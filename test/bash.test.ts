@@ -1,4 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { commandKey, firstWord } from "../src/commands/bash";
 
 describe("firstWord", () => {
@@ -36,7 +39,7 @@ describe("firstWord", () => {
 });
 
 describe("commandKey", () => {
-  test("full keeps a first line longer than 60 characters unchanged", () => {
+  test("full keeps a single-line command longer than 60 characters unchanged", () => {
     const cmd =
       "git log --oneline --since=2026-01-01 --until=2026-10-01 --author=TakashiAihara --all";
     expect(cmd.length).toBeGreaterThan(80);
@@ -54,17 +57,77 @@ describe("commandKey", () => {
     );
   });
 
-  test("full returns only the first line of a multi-line command", () => {
-    expect(commandKey("cd src\nls -la\necho done", true)).toBe("cd src");
+  test("full returns the whole trimmed command, every line included", () => {
+    expect(commandKey("cd src\nls -la\necho done", true)).toBe("cd src\nls -la\necho done");
   });
 
-  test("full trims surrounding whitespace before taking the first line", () => {
-    expect(commandKey("\n  bun test\n  bun run lint  \n", true)).toBe("bun test");
+  test("full trims surrounding whitespace but keeps the inner lines", () => {
+    expect(commandKey("\n  bun test\n  bun run lint  \n", true)).toBe("bun test\n  bun run lint");
   });
 
   test("without full the key is the leading word", () => {
     expect(commandKey("git log --oneline --since=2026-01-01 --until=2026-10-01", false)).toBe(
       "git",
     );
+  });
+});
+
+describe("bash --full --json (CLI)", () => {
+  let root: string;
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), "cchist-bash-full-"));
+    const proj = join(root, "-home-dev-demo");
+    mkdirSync(proj);
+    // first line is longer than the 60-char table budget, so --json is the only
+    // place the whole key can be seen
+    writeFileSync(
+      join(proj, "01234567-89ab-cdef-0123-456789abcdef.jsonl"),
+      JSON.stringify({
+        type: "assistant",
+        cwd: "/home/dev/demo",
+        timestamp: "2026-08-10T01:02:04.000Z",
+        message: {
+          role: "assistant",
+          content: [
+            {
+              type: "tool_use",
+              name: "Bash",
+              input: {
+                command:
+                  "bun test test/bash.test.ts test/format.test.ts test/search.test.ts && echo all green\necho second line",
+              },
+            },
+          ],
+        },
+      }) + "\n",
+    );
+  });
+
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test("keys are the whole command, newlines and all", async () => {
+    const proc = Bun.spawn(["bun", "run", "src/index.ts", "bash", "--full", "--json"], {
+      cwd: join(import.meta.dir, ".."),
+      env: {
+        ...process.env,
+        CCHIST_PROJECTS_DIR: root,
+        // isolate from the developer's own ~/.config/cchist/config.json excludes
+        CCHIST_CONFIG: join(root, "no-such-config.json"),
+      },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
+    expect(await proc.exited).toBe(0);
+    expect(stderr).toBe("");
+    expect(JSON.parse(stdout)).toEqual({
+      "bun test test/bash.test.ts test/format.test.ts test/search.test.ts && echo all green\necho second line": 1,
+    });
   });
 });

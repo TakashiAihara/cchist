@@ -120,9 +120,12 @@ addExclude(
 addExclude(
   program
     .command("bash")
-    .description("most-used Bash commands (leading word; --full for first line)")
+    .description("most-used Bash commands (leading word; --full for the whole command)")
     .option("--top <n>", "max rows", "25")
-    .option("--full", "group by first line instead of leading word")
+    .option(
+      "--full",
+      "group by the whole command instead of the leading word (the table shows it shortened)",
+    )
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
     .option("--since <date>", "only sessions active on/after this date (ISO)")

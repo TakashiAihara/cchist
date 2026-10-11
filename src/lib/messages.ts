@@ -1,3 +1,5 @@
+import { trunc } from "./format";
+
 export type Msg = {
   index: number;
   role: "user" | "assistant";
@@ -96,5 +98,6 @@ export function msgSummary(m: Msg, width = 90): string {
   if (!s && m.tools.length) s = "⚙ " + m.tools.map((t) => t.name).join(", ");
   if (!s && m.isToolResult) s = "(tool result)";
   if (!s) s = "(empty)";
-  return s.length > width ? s.slice(0, width - 1) + "…" : s;
+  // trunc cuts on code point boundaries, so the width never splits an emoji
+  return trunc(s, width);
 }

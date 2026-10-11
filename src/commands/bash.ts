@@ -12,10 +12,10 @@ export function firstWord(cmd: string): string {
   return parts[i] ?? "?";
 }
 
-/** Bucket key for a command: the leading word, or with --full the whole first line. */
+/** Bucket key for a command: the leading word, or with --full the whole trimmed command. */
 export function commandKey(cmd: string, full: boolean): string {
-  // No length cap: a cap here would also cut a surrogate pair in half and make --json unparseable
-  return full ? (cmd.trim().split("\n")[0] ?? "") : firstWord(cmd);
+  // No cap: a shortened key would hide the rest of the command from --json consumers (#25)
+  return full ? cmd.trim() : firstWord(cmd);
 }
 
 export function bash(opts: Opts): void {
@@ -42,7 +42,8 @@ export function bash(opts: Opts): void {
     table(
       ["command", "count", "share"],
       rows.map(([k, c]) => [
-        trunc(k, 60),
+        // a row is one line, so a multi-line key shows "⏎" where it breaks; --json keeps the newlines
+        trunc(k.replaceAll("\n", "⏎"), 60),
         fmtNum(c),
         total ? ((c / total) * 100).toFixed(1) + "%" : "-",
       ]),

@@ -45,11 +45,6 @@ describe("trunc", () => {
     expect(trunc("abcdefgh", 5, "left")).toBe("…efgh");
   });
 
-  test("counts code points, so 4 of ab🌈cd is 3 characters plus the ellipsis", () => {
-    expect("ab🌈cd".length).toBe(6);
-    expect(Array.from("ab🌈cd")).toHaveLength(5);
-  });
-
   test("a right cut landing on an emoji keeps both halves of the pair", () => {
     const cut = trunc("ab🌈cd", 4);
     expect(cut).toBe("ab🌈…");
