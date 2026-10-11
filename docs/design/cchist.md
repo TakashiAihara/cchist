@@ -49,7 +49,7 @@ cchist tokens [--since D] [--local] [--json]
 cchist tools  [--expand-skills] [--since D] [--local] [--json]
 cchist bash   [--top N] [--full] [--since D] [--local] [--json]   # Bash コマンド頻度 (先頭語。--full はコマンド全体)
 cchist files  [--top N] [--since D] [--local] [--json]            # 編集ファイルランキング
-cchist activity [--since D] [--local] [--json]                    # active 時間 + 時間帯ヒストグラム
+cchist activity [--idle-gap MIN] [--since D] [--local] [--json]   # active 時間 (アイドル・keep-alive を除く) + 時間帯ヒストグラム
 cchist commands [--top N] [--skills-only] [--source slash|tool|all] [--since D] [--local] [--json]   # slash command / Skill tool 利用頻度
 cchist search <q> [--regex] [--case] [--role R] [--thinking] [--context N] [--limit N] [--session ID | filters] [--group] [--hits-per N] [--json]
 cchist completion <bash|zsh|fish>
