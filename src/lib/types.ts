@@ -51,6 +51,10 @@ export type SessionMeta = {
   // but never reach `skills`; consumers that want totals to add up should add a
   // `Skill:?` bucket for `tools.Skill − Σ skills[*]` (as `cchist tools --expand-skills` does).
   skills: Record<string, number>;
+  // set when the last assistant record in this file (file order) is an API error
+  // (usage limit, prompt too long, ...): this file stopped there; a resume into a
+  // new file is not seen here
+  apiError: { kind: string; text: string } | null;
   // per-event detail for aggregation; `usage` above is the sum of `events.calls`
   // within this file, before copies are credited to their original session
   events: SessionEvents;

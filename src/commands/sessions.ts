@@ -7,12 +7,13 @@ import { notFound } from "../lib/errors";
 import { table, fmtK, trunc, json, fmtTs } from "../lib/format";
 import { type CommonFilter, type SessionMeta, publicMeta } from "../lib/types";
 
-type ListOpts = CommonFilter & { limit?: string; json?: boolean };
+type ListOpts = CommonFilter & { limit?: string; json?: boolean; apiError?: boolean };
 
 export function sessionsList(opts: ListOpts): void {
   const limit = opts.limit ? parseInt(opts.limit, 10) : 20;
   const { all, kept } = loadAll(opts);
-  const metas = kept.slice(0, limit); // already mtime-desc from discover
+  // already mtime-desc from discover; --api-error keeps sessions that stopped on one
+  const metas = kept.filter((m) => !opts.apiError || m.apiError).slice(0, limit);
 
   if (opts.json) return json(metas.map(publicMeta));
 
@@ -26,9 +27,16 @@ export function sessionsList(opts: ListOpts): void {
     trunc(m.cwd ?? "-", 28, "left"),
     String(m.userTurns),
     fmtK(output(m)),
+    // the message names the limit or cause (session vs weekly limit, prompt too long)
+    ...(opts.apiError ? [trunc(m.apiError?.text ?? "-", 56)] : []),
     trunc(m.title ?? m.lastPrompt ?? "-", 44),
   ]);
-  out(table(["id", "last", "cwd", "turns", "out", "title"], rows));
+  out(
+    table(
+      ["id", "last", "cwd", "turns", "out", ...(opts.apiError ? ["error"] : []), "title"],
+      rows,
+    ),
+  );
 }
 
 type LatestOpts = CommonFilter & { json?: boolean };
