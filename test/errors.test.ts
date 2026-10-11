@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { AppError, EXIT, invalidInput, notFound } from "../src/lib/errors";
@@ -77,13 +77,15 @@ describe("CLI integration (top-level catch wiring)", () => {
     return { code, stdout, stderr };
   }
 
-  // a regular file as projects dir makes listSessionFiles() throw (ENOTDIR), so
-  // exit 3 is only reachable when --since is rejected before listing runs
+  // a directory named like a session lists fine but fails on read (EISDIR), so
+  // exit 3 is only reachable when --since is rejected before any session file is read
   function unreadableProjectsDir(): { env: Record<string, string>; rm: () => void } {
     const dir = mkdtempSync(join(tmpdir(), "cchist-errors-"));
-    const file = join(dir, "projects");
-    writeFileSync(file, "not a directory");
-    return { env: { CCHIST_PROJECTS_DIR: file }, rm: () => rmSync(dir, { recursive: true }) };
+    mkdirSync(join(dir, "-p", "unreadable.jsonl"), { recursive: true });
+    return {
+      env: { CCHIST_PROJECTS_DIR: dir, CCHIST_CONFIG: join(dir, "no-config.json") },
+      rm: () => rmSync(dir, { recursive: true }),
+    };
   }
 
   async function runUnreadable(
@@ -109,10 +111,17 @@ describe("CLI integration (top-level catch wiring)", () => {
     expect(r.stderr).toContain("cchist: invalid range");
   });
 
-  test("positive control: the unreadable projects dir alone fails listing with exit 1", async () => {
-    const r = await runUnreadable(["tokens"]);
-    expect(r.code).toBe(EXIT.ERROR);
-  });
+  for (const args of [
+    ["tokens"],
+    ["bash"],
+    ["sessions", "latest"],
+    ["search", "x", "--session", "latest"],
+  ]) {
+    test(`positive control: without --since, ${args.join(" ")} reads the unreadable session and exits 1`, async () => {
+      const r = await runUnreadable(args);
+      expect(r.code).toBe(EXIT.ERROR);
+    });
+  }
 
   test("invalid --since on search --session → exit 3", async () => {
     const r = await runUnreadable(["search", "x", "--session", "latest", "--since", "not-a-date"]);
