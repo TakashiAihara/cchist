@@ -85,6 +85,17 @@ describe("apiError", () => {
     expect(rows.slice(2).map((r) => r.split(/\s+/)[0])).toEqual(["stopped"]);
   });
 
+  test("a subagent's normal reply after a main-thread error keeps the session stopped", () => {
+    const p = f("side2");
+    const sideReply = reply("sub ok").replace(
+      '"type":"assistant"',
+      '"type":"assistant","isSidechain":true',
+    );
+    writeFileSync(p, [reply("hi"), limit, sideReply].join("\n") + "\n");
+    expect(parseSession(p).apiError?.kind).toBe("rate_limit");
+    rmSync(p);
+  });
+
   test("a subagent's API error does not mark the session stopped", () => {
     const p = f("side");
     const side = limit.replace(

@@ -28,7 +28,7 @@ export function sessionsList(opts: ListOpts): void {
     String(m.userTurns),
     fmtK(output(m)),
     // the message names the limit or cause (session vs weekly limit, prompt too long)
-    ...(opts.apiError ? [trunc(m.apiError?.text ?? "-", 40)] : []),
+    ...(opts.apiError ? [trunc(m.apiError?.text ?? "-", 56)] : []),
     trunc(m.title ?? m.lastPrompt ?? "-", 44),
   ]);
   out(
