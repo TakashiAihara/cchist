@@ -69,10 +69,13 @@ export function parseSession(file: string): SessionMeta {
 
     if (rec.type === "assistant" && rec.message) {
       meta.assistantMsgs++;
-      // only the last assistant record counts: a later normal reply means it went on
-      meta.apiError = rec.isApiErrorMessage
-        ? { kind: rec.error ?? "unknown", text: firstText(rec.message.content) }
-        : null;
+      // only the last main-thread assistant record counts: a later normal reply means
+      // it went on, and a subagent's (sidechain) failure does not stop the session
+      if (!rec.isSidechain) {
+        meta.apiError = rec.isApiErrorMessage
+          ? { kind: String(rec.error ?? "unknown"), text: firstText(rec.message.content) }
+          : null;
+      }
       // <synthetic> is the pseudo-model on injected/synthetic turns, not a real model
       if (rec.message.model && rec.message.model !== "<synthetic>") models.add(rec.message.model);
 

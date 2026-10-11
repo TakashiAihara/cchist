@@ -72,9 +72,28 @@ describe("apiError", () => {
     expect(rows[0]).toContain("You've hit your session limit");
   });
 
-  test("the plain list has no error column", async () => {
+  test("the plain list keeps its columns", async () => {
     const head = (await cli(["sessions", "list"])).split("\n")[0];
-    expect(head).not.toContain("error");
+    expect(head?.split(/\s+/)).toEqual(["id", "last", "cwd", "turns", "out", "title"]);
+  });
+
+  test("--api-error filters before --limit", async () => {
+    // "resumed" is newer, so a limit of 1 before the filter would leave nothing
+    const rows = (await cli(["sessions", "list", "--api-error", "--limit", "1"]))
+      .trim()
+      .split("\n");
+    expect(rows.slice(2).map((r) => r.split(/\s+/)[0])).toEqual(["stopped"]);
+  });
+
+  test("a subagent's API error does not mark the session stopped", () => {
+    const p = f("side");
+    const side = limit.replace(
+      '"isApiErrorMessage":true',
+      '"isApiErrorMessage":true,"isSidechain":true',
+    );
+    writeFileSync(p, [reply("hi"), side].join("\n") + "\n");
+    expect(parseSession(p).apiError).toBeNull();
+    rmSync(p);
   });
 
   test("line order decides the last record, not timestamps", () => {
