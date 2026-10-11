@@ -96,3 +96,12 @@ describe("iterFiltered validation", () => {
     expect(() => iterFiltered({ since: "not-a-date" })).toThrow(/invalid --since/);
   });
 });
+
+describe("iterFiltered order", () => {
+  test("oldest yields the files in the reverse of the default newest-first order", () => {
+    const newest = [...iterFiltered({})].map((r) => r.file);
+    const oldest = [...iterFiltered({}, "oldest")].map((r) => r.file);
+    expect(newest.length).toBeGreaterThan(1);
+    expect(oldest).toEqual([...newest].reverse());
+  });
+});

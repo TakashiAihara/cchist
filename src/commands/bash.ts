@@ -1,9 +1,11 @@
 import { iterFiltered, namedSession } from "../lib/records";
+import { invalidInput } from "../lib/errors";
+import { printBashCalls } from "./bash-calls";
 import { table, fmtNum, trunc, json, oneLine } from "../lib/format";
 import { intOption } from "../lib/options";
 import { type CommonFilter } from "../lib/types";
 
-type Opts = CommonFilter & { json?: boolean; top?: string; full?: boolean };
+type Opts = CommonFilter & { json?: boolean; top?: string; full?: boolean; withResults?: boolean };
 
 /** Leading command word, skipping `FOO=bar` env prefixes. */
 export function firstWord(cmd: string): string {
@@ -20,6 +22,17 @@ export function commandKey(cmd: string, full: boolean): string {
 }
 
 export function bash(id: string | undefined, opts: Opts): void {
+  if (opts.withResults) {
+    // each call is already one JSON line; counting options would be silently ignored
+    const counting = [
+      opts.json && "--json",
+      opts.full && "--full",
+      opts.top !== undefined && "--top",
+    ];
+    const bad = counting.filter(Boolean);
+    if (bad.length) throw invalidInput(`${bad.join(", ")} cannot be combined with --with-results`);
+    return printBashCalls(id, opts);
+  }
   const top = intOption(opts.top, "--top", 25);
   const counts = new Map<string, number>();
   for (const { recs } of sources(id, opts)) {

@@ -147,6 +147,10 @@ addExclude(
     )
     .option("--top <n>", "max rows (default: 25)")
     .option(
+      "--with-results",
+      "one JSON line per call: command, run_in_background, its result and size (no counting)",
+    )
+    .option(
       "--full",
       "group by the whole command instead of the leading word (the table shows it shortened)",
     )

@@ -90,7 +90,7 @@ export function activity(opts: Opts): void {
   const seen = new Set<string>();
 
   // oldest file first, so a copied record stays with the session that wrote it
-  for (const { recs } of [...iterFiltered(opts)].reverse()) {
+  for (const { recs } of iterFiltered(opts, "oldest")) {
     sessions++;
     const t = recs
       .filter((r) => r.timestamp && counts(r))
