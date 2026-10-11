@@ -1,4 +1,4 @@
-import { listSessionFiles } from "../lib/discover";
+import { filesSince } from "../lib/discover";
 import { parseSession } from "../lib/parse";
 import { keepSession, loadAll, parseSince } from "../lib/filter";
 import { ownEvents } from "../lib/usage";
@@ -47,7 +47,7 @@ export function sessionsLatest(opts: LatestOpts): void {
   // validate before the scan so an invalid --since exits before any session file is read
   const sinceT = parseSince(merged.since);
   // walk mtime-desc and parse lazily until one passes the filters
-  for (const f of listSessionFiles()) {
+  for (const f of filesSince(sinceT)) {
     const m = parseSession(f.file);
     if (!keepSession(m, merged, sinceT)) continue;
     if (opts.json) return json(publicMeta(m));

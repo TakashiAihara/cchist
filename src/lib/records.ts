@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import { listSessionFiles, resolveSessionFile } from "./discover";
+import { filesSince, resolveSessionFile } from "./discover";
 import { invalidInput, notFound } from "./errors";
 import { keepSession, parseSince } from "./filter";
 import { withConfigExcludes } from "./config";
@@ -49,7 +49,7 @@ function* scan(
   order: "newest" | "oldest",
 ): Generator<LoadedRecords> {
   // reverse the file list, not the results, so oldest-first still reads one file at a time
-  const files = listSessionFiles();
+  const files = filesSince(sinceT);
   for (const f of order === "oldest" ? files.reverse() : files) {
     const recs = readRecords(f.file);
     let cwd: string | null = null;

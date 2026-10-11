@@ -179,7 +179,10 @@ over every session before the filters run, so `--cwd` or
 
 `--since` keeps the sessions active since the date and then counts only the events
 at or after it, so `stats --by day --since 2026-06-01` starts on that day. A bare
-date means local midnight (the same zone as the days). `--by day`
+date means local midnight (the same zone as the days); a date-time
+(`2026-06-01T09:00`, a space instead of `T` too, seconds optional) is local time
+unless it ends in `Z` or `+09:00`. Anything else, or a field that rolls over
+(`2026-02-30`, `25:00`), exits 3. `--by day`
 puts each event on the local date it happened (set `TZ` to change the zone); its
 `sess` column counts the sessions active that day, so a session spanning midnight
 counts on both days. `sessions list` shows the output a session owns the same way

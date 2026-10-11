@@ -95,3 +95,13 @@ function isDir(p: string): boolean {
     return false;
   }
 }
+
+/**
+ * Session files, newest first, that can hold a record at or after `sinceT`. A file
+ * is written after its records, so its last record is no newer than its mtime (0
+ * of 471 real files broke this); an older file cannot match and is not read.
+ */
+export function filesSince(sinceT: number | null): FileEntry[] {
+  const files = listSessionFiles();
+  return sinceT == null ? files : files.filter((f) => f.mtimeMs >= sinceT);
+}
