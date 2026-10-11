@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { listSessionFiles } from "./discover";
 import { keepSession, parseSince } from "./filter";
 import { withConfigExcludes } from "./config";
-
 import { type CommonFilter } from "./types";
 
 /** Raw JSONL records of one session file (skips unparseable lines). */

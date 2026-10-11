@@ -40,9 +40,10 @@ export type FilterSubject = {
 };
 
 /**
- * The one keep-rule for local / cwd / since / exclude. Every scan (parsed
- * metas, raw records, the lazy `sessions latest` walk) calls this so a common
- * flag cannot be honoured by one command and skipped by another.
+ * The one keep-rule for local / cwd / since / exclude, shared by the multi-session
+ * scans (parsed metas, raw records, the lazy `sessions latest` walk) so a common
+ * flag cannot be honoured by one of them and skipped by another. `sinceT` is the
+ * already-validated `opts.since`, passed in so it is not reparsed per session.
  */
 export function keepSession(s: FilterSubject, opts: CommonFilter, sinceT: number | null): boolean {
   if (opts.local && s.cwd !== process.cwd()) return false;

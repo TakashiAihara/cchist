@@ -3,7 +3,6 @@ import { parseSession } from "../lib/parse";
 import { keepSession, loadSessions, parseSince } from "../lib/filter";
 import { withConfigExcludes } from "../lib/config";
 import { notFound } from "../lib/errors";
-
 import { table, fmtK, trunc, json } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
