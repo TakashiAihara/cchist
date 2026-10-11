@@ -63,19 +63,45 @@ describe("apiError", () => {
     expect(parseSession(f("resumed")).apiError).toBeNull();
   });
 
-  test("sessions list --api-error keeps only stopped sessions and shows the kind", async () => {
+  test("sessions list --api-error keeps only stopped sessions and shows the message", async () => {
     const out = await cli(["sessions", "list", "--api-error"]);
-    const rows = out.trim().split("\n").slice(2);
+    const [head, , ...rows] = out.trim().split("\n");
+    expect(head).toContain("error");
     expect(rows).toHaveLength(1);
     expect(rows[0]).toStartWith("stopped");
-    expect(rows[0]).toContain("rate_limit");
+    expect(rows[0]).toContain("You've hit your session limit");
+  });
+
+  test("the plain list has no error column", async () => {
+    const head = (await cli(["sessions", "list"])).split("\n")[0];
+    expect(head).not.toContain("error");
+  });
+
+  test("line order decides the last record, not timestamps", () => {
+    const p = f("order");
+    const late = reply("late").replace("2026-06-01T00:00:00Z", "2026-06-02T00:00:00Z");
+    writeFileSync(p, [late, limit].join("\n") + "\n");
+    expect(parseSession(p).apiError?.kind).toBe("rate_limit");
+    rmSync(p);
+  });
+
+  test("an error record without a kind or with string content still flags the session", () => {
+    const p = f("bare");
+    const bare = JSON.stringify({
+      type: "assistant",
+      isApiErrorMessage: true,
+      message: { content: "Prompt is too long" },
+    });
+    writeFileSync(p, bare + "\n");
+    expect(parseSession(p).apiError).toEqual({ kind: "unknown", text: "Prompt is too long" });
+    rmSync(p);
   });
 
   test("--json carries apiError for every session", async () => {
     const rows = JSON.parse(await cli(["sessions", "list", "--json"]));
-    expect(rows.map((r: any) => [r.id, r.apiError?.kind ?? null])).toEqual([
+    expect(rows.map((r: any) => [r.id, r.apiError])).toEqual([
       ["resumed", null],
-      ["stopped", "rate_limit"],
+      ["stopped", { kind: "rate_limit", text: "You've hit your session limit · resets 5pm" }],
     ]);
   });
 });

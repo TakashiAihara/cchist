@@ -27,10 +27,16 @@ export function sessionsList(opts: ListOpts): void {
     trunc(m.cwd ?? "-", 28, "left"),
     String(m.userTurns),
     fmtK(output(m)),
-    m.apiError?.kind ?? "-",
+    // the message names the limit or cause (session vs weekly limit, prompt too long)
+    ...(opts.apiError ? [trunc(m.apiError?.text ?? "-", 40)] : []),
     trunc(m.title ?? m.lastPrompt ?? "-", 44),
   ]);
-  out(table(["id", "last", "cwd", "turns", "out", "stop", "title"], rows));
+  out(
+    table(
+      ["id", "last", "cwd", "turns", "out", ...(opts.apiError ? ["error"] : []), "title"],
+      rows,
+    ),
+  );
 }
 
 type LatestOpts = CommonFilter & { json?: boolean };

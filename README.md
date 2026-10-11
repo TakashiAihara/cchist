@@ -59,7 +59,7 @@ prebuilt binaries do not.
 ## Usage
 
 ```bash
-cchist sessions list --api-error       # sessions that stopped on an API error (limit, expired login)
+cchist sessions list --api-error       # sessions that stopped on an API error (usage limit, prompt too long)
 cchist sessions latest                 # bare session id of the most recent session
 cchist sessions latest --local         # ...restricted to sessions in the current cwd
 cchist sessions latest --json          # full SessionMeta as JSON

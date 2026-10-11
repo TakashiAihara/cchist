@@ -62,7 +62,7 @@ addExclude(
     .option("--limit <n>", "max rows", "20")
     .option(
       "--api-error",
-      "only sessions whose last assistant turn is an API error (limit, expired login)",
+      "only sessions whose last assistant turn is an API error (usage limit, prompt too long, ...), with its message",
     )
     .option("--json", "machine-readable output"),
 ).action(sessionsList);
