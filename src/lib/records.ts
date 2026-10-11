@@ -35,13 +35,22 @@ export type LoadedRecords = {
  * Validation runs eagerly, outside the generator, so an invalid --since throws
  * at the call before any session file is read.
  */
-export function iterFiltered(opts: CommonFilter): Generator<LoadedRecords> {
+export function iterFiltered(
+  opts: CommonFilter,
+  order: "newest" | "oldest" = "newest",
+): Generator<LoadedRecords> {
   const merged = withConfigExcludes(opts);
-  return scan(merged, parseSince(merged.since));
+  return scan(merged, parseSince(merged.since), order);
 }
 
-function* scan(merged: CommonFilter, sinceT: number | null): Generator<LoadedRecords> {
-  for (const f of listSessionFiles()) {
+function* scan(
+  merged: CommonFilter,
+  sinceT: number | null,
+  order: "newest" | "oldest",
+): Generator<LoadedRecords> {
+  // reverse the file list, not the results, so oldest-first still reads one file at a time
+  const files = listSessionFiles();
+  for (const f of order === "oldest" ? files.reverse() : files) {
     const recs = readRecords(f.file);
     let cwd: string | null = null;
     let entrypoint: string | null = null;

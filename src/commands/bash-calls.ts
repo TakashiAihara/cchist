@@ -73,7 +73,7 @@ export function bashCalls(session: string, recs: any[]): BashCall[] {
  */
 export function printBashCalls(id: string | undefined, opts: CommonFilter): void {
   const sinceT = id === undefined ? parseSince(opts.since) : null;
-  const sources = id === undefined ? [...iterFiltered(opts)].reverse() : [namedSession(id, opts)];
+  const sources = id === undefined ? iterFiltered(opts, "oldest") : [namedSession(id, opts)];
   const seen = new Set<string>();
   for (const { file, recs } of sources) {
     for (const c of bashCalls(basename(file, ".jsonl"), recs)) {
