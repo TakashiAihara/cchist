@@ -31,8 +31,10 @@ export function parseSince(since: string | undefined): number | null {
   const v = new Date(0);
   v.setUTCFullYear(y!, mo! - 1, d!);
   v.setUTCHours(h, mi, s);
-  if (v.toISOString().slice(0, 19) !== fields) throw bad();
-  const ms = m[7] ? Math.round(Number(m[7]) * 1000) : 0;
+  // years 0-99 would be read as 19xx by the local Date constructor; no session is that old
+  if (y! < 1000 || v.toISOString().slice(0, 19) !== fields) throw bad();
+  // truncated, so .9995 cannot round up to a fourth digit
+  const ms = m[7] ? Math.floor(Number(m[7]) * 1000) : 0;
   const zone = m[8]?.toUpperCase();
   if (!zone) return new Date(y!, mo! - 1, d!, h, mi, s, ms).getTime();
   return Date.parse(`${fields}.${pad(ms, 3)}${zone}`);

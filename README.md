@@ -211,7 +211,7 @@ Human-readable times are local with their UTC offset (`2026-10-01 12:25+09:00`),
 `stats --by day` / `activity` use the same local zone; set `TZ` to change it. `--json`
 keeps the timestamps as the JSONL records them (ISO, UTC `Z`). `--since` takes an ISO
 date or date-time: a bare date is local midnight, a date-time without a zone is local
-time, and `Z` / `+09:00` / `+0900` (any case) give the zone. Before 0.3 it took
+time, and `Z` / `+09:00` / `+0900` (any case) give the zone. Earlier versions took
 anything `Date.parse` read (`2026`, `June 1, 2026`); those now exit 3, and so does a
 field that rolls over. Files last written more than a day before `--since` are not
 read (a file is written after its records).
