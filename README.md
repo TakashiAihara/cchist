@@ -213,8 +213,10 @@ keeps the timestamps as the JSONL records them (ISO, UTC `Z`). `--since` takes a
 date or date-time: a bare date is local midnight, a date-time without a zone is local
 time, and `Z` / `+09:00` / `+0900` (any case) give the zone. Earlier versions took
 anything `Date.parse` read (`2026`, `June 1, 2026`); those now exit 3, and so does a
-field that rolls over. Files last written more than a day before `--since` are not
-read (a file is written after its records).
+field that rolls over. `sessions latest` and the commands that read sessions one by
+one (`bash`, `files`, `activity`, `search`) skip files last written more than a day
+before `--since` (a file is written after its records); `sessions list`, `stats`,
+`tokens`, `tools` and `commands` read every file, to credit copied calls.
 
 `--exclude-cwd` globs are simple: `*` matches any run, `?` one char, everything
 else is literal.
