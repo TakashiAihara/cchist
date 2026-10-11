@@ -56,7 +56,8 @@ export function callCost(
       : name && Object.hasOwn(PRICES, name)
         ? PRICES[name]
         : undefined;
-  // a synthetic reply (no model) carries no tokens, so it costs nothing either way
+  // a call with no tokens (a synthetic reply has no model) costs nothing at any price
+  if (!Number.isFinite(prompt + u.output)) return null;
   if (!p) return prompt + u.output ? null : 0;
   const [input, write5m, write1h, read, output] = p;
   const tokens =

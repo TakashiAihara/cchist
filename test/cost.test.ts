@@ -106,8 +106,9 @@ describe("callCost", () => {
     expect(callCost("__proto__", u({ input: 1 }))).toBeNull();
   });
 
-  test("a non-numeric count makes the call unpriced instead of NaN", () => {
+  test("a non-numeric count makes the call unpriced instead of NaN, known model or not", () => {
     expect(callCost("claude-opus-5-5", u({ input: "x" as unknown as number }))).toBeNull();
+    expect(callCost("claude-future-9", u({ input: NaN }))).toBeNull();
   });
 
   test("an unknown model is null, unless the call has no tokens", () => {
@@ -172,6 +173,33 @@ afterAll(() => {
 });
 
 describe("parseSession", () => {
+  test("lines of one call are merged before the 1h part is capped; any line can name the model", () => {
+    const f = join(root, "merge.jsonl");
+    const line = (model: string | undefined, usage: Record<string, unknown>) =>
+      JSON.stringify({
+        type: "assistant",
+        requestId: "r-m",
+        message: { id: "m", model, content: [], usage },
+      });
+    writeFileSync(
+      f,
+      [
+        line(undefined, {
+          cache_creation_input_tokens: 0,
+          cache_creation: { ephemeral_1h_input_tokens: 500 },
+        }),
+        line("claude-opus-5-5", { cache_creation_input_tokens: 500, speed: "fast" }),
+      ].join("\n") + "\n",
+    );
+    const [c] = parseSession(f).events.calls;
+    expect([c!.model, c!.surcharge, c!.usage.cacheCreate, c!.usage.cacheCreate1h]).toEqual([
+      "claude-opus-5-5",
+      "fast",
+      500,
+      500,
+    ]);
+  });
+
   test("each call keeps its model and its 1h write, clamped to the write total", () => {
     const calls = parseSession(join(root, "-p", "s.jsonl")).events.calls;
     expect(calls.map((c) => [c.model, c.usage.cacheCreate, c.usage.cacheCreate1h])).toEqual([

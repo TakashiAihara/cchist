@@ -90,18 +90,18 @@ export function parseSession(file: string): SessionMeta {
           output: u.output_tokens || 0,
           cacheRead: u.cache_read_input_tokens || 0,
           cacheCreate: u.cache_creation_input_tokens || 0,
-          // a few records give the 1h split but 0 at the top level; trust the top level
-          cacheCreate1h: Math.min(
-            u.cache_creation?.ephemeral_1h_input_tokens || 0,
-            u.cache_creation_input_tokens || 0,
-          ),
+          cacheCreate1h: u.cache_creation?.ephemeral_1h_input_tokens || 0,
           webSearch: u.server_tool_use?.web_search_requests || 0,
           webFetch: u.server_tool_use?.web_fetch_requests || 0,
         };
         const seen = key ? seenCalls.get(key) : undefined;
-        if (seen) maxUsage(seen.usage, usage);
-        else {
-          const surcharge = u.speed === "fast" ? "fast" : u.inference_geo === "us" ? "us" : null;
+        const surcharge = u.speed === "fast" ? "fast" : u.inference_geo === "us" ? "us" : null;
+        if (seen) {
+          maxUsage(seen.usage, usage);
+          // what decides the price comes from whichever line carries it
+          seen.model ??= model;
+          seen.surcharge ??= surcharge;
+        } else {
           const call: Call = { key, ts: rec.timestamp ?? null, model, surcharge, usage };
           meta.events.calls.push(call);
           if (key) seenCalls.set(key, call);
@@ -133,7 +133,12 @@ export function parseSession(file: string): SessionMeta {
   if (meta.firstTs && meta.lastTs) {
     meta.durationMs = Date.parse(meta.lastTs) - Date.parse(meta.firstTs);
   }
-  for (const c of meta.events.calls) addUsage(meta.usage, c.usage);
+  for (const c of meta.events.calls) {
+    // a streamed partial line can give the 1h split with 0 at the top level; after the
+    // lines of a call are merged, the 1h part cannot exceed the write it is part of
+    c.usage.cacheCreate1h = Math.min(c.usage.cacheCreate1h, c.usage.cacheCreate);
+    addUsage(meta.usage, c.usage);
+  }
   meta.models = [...models];
   return meta;
 }
