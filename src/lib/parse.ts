@@ -85,7 +85,7 @@ export function parseSession(file: string): SessionMeta {
       // one response is written as one line per content block, each repeating its usage
       const key = rec.message.id && rec.requestId ? `${rec.message.id}:${rec.requestId}` : null;
       if (u) {
-        const { cacheCreate5m: _, ...counts } = tokenCounts(u);
+        const { cacheCreate5m: _, prompt: __, ...counts } = tokenCounts(u);
         const usage = {
           ...counts,
           webSearch: u.server_tool_use?.web_search_requests || 0,
@@ -148,10 +148,15 @@ function firstText(content: unknown): string {
 }
 
 /**
- * Token counts of one `message.usage`. A few records leave the top level at 0 and
- * carry the real counts in `usage.iterations`; then the iterations are summed. When
- * the top level has counts it is used as is: on a fallback call it already holds
- * the iteration that was served, and the refused one before it is not billed there.
+ * Token counts of one `message.usage`. A few records leave every top-level count at
+ * 0 and carry the real counts in `usage.iterations`; then the iterations are summed
+ * for the totals, and `prompt` is the largest single iteration's prompt (each
+ * iteration resends the context, so a sum would count it again). When the top level
+ * has counts it is used as is.
+ *
+ * shortcut: on a fallback call the top level is the attempt that was served, and the
+ * refused attempt before it (also billed) is only in `iterations`, so it is not
+ * counted (#65).
  */
 export function tokenCounts(u: any): {
   input: number;
@@ -160,23 +165,30 @@ export function tokenCounts(u: any): {
   cacheCreate: number;
   cacheCreate5m: number;
   cacheCreate1h: number;
+  prompt: number;
 } {
-  const one = (x: any) => ({
-    input: x?.input_tokens || 0,
-    output: x?.output_tokens || 0,
-    cacheRead: x?.cache_read_input_tokens || 0,
-    cacheCreate: x?.cache_creation_input_tokens || 0,
-    cacheCreate5m: x?.cache_creation?.ephemeral_5m_input_tokens || 0,
-    cacheCreate1h: x?.cache_creation?.ephemeral_1h_input_tokens || 0,
-  });
+  const one = (x: any) => {
+    const c = {
+      input: x?.input_tokens || 0,
+      output: x?.output_tokens || 0,
+      cacheRead: x?.cache_read_input_tokens || 0,
+      cacheCreate: x?.cache_creation_input_tokens || 0,
+      cacheCreate5m: x?.cache_creation?.ephemeral_5m_input_tokens || 0,
+      cacheCreate1h: x?.cache_creation?.ephemeral_1h_input_tokens || 0,
+      prompt: 0,
+    };
+    c.prompt = c.input + c.cacheRead + c.cacheCreate;
+    return c;
+  };
   const top = one(u);
-  if (top.input + top.output + top.cacheRead + top.cacheCreate || !Array.isArray(u?.iterations)) {
-    return top;
-  }
+  // the 5m / 1h split is left out: the zeroed records keep a split of the real write
+  if (top.prompt + top.output || !Array.isArray(u?.iterations)) return top;
   const sum = one(null);
   for (const it of u.iterations) {
     const c = one(it);
-    for (const k of Object.keys(sum) as (keyof typeof sum)[]) sum[k] += c[k];
+    for (const k of Object.keys(sum) as (keyof typeof sum)[]) {
+      sum[k] = k === "prompt" ? Math.max(sum[k], c[k]) : sum[k] + c[k];
+    }
   }
   return sum;
 }

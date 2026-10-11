@@ -50,7 +50,10 @@ export function contextReport(lines: string[]): ContextReport {
   const totals = new Map<string, { count: number; chars: number }>();
   let cur: Turn | null = null;
   // one response is written as one line per content block, each repeating its usage
-  const calls = new Map<string, { t: Turn; read: number; write5m: number; write1h: number }>();
+  const calls = new Map<
+    string,
+    { t: Turn; read: number; write5m: number; write1h: number; write: number }
+  >();
   const prompted = new Set<Turn>();
   const open = (line: number, ts: string | null): Turn => {
     cur = {
@@ -90,13 +93,14 @@ export function contextReport(lines: string[]): ContextReport {
     const raw = r.type === "assistant" && !r.isApiErrorMessage ? r.message?.usage : null;
     if (raw) {
       const u = tokenCounts(raw);
-      t.context = Math.max(t.context, u.input + u.cacheRead + u.cacheCreate);
+      t.context = Math.max(t.context, u.prompt);
       const key = r.message?.id && r.requestId ? `${r.message.id}:${r.requestId}` : `line ${i}`;
-      const c = calls.get(key) ?? { t, read: 0, write5m: 0, write1h: 0 };
+      const c = calls.get(key) ?? { t, read: 0, write5m: 0, write1h: 0, write: 0 };
       // a copy may be partial (zeroed), so the fullest one wins, as in parse.ts
       c.read = Math.max(c.read, u.cacheRead);
       c.write5m = Math.max(c.write5m, u.cacheCreate5m);
       c.write1h = Math.max(c.write1h, u.cacheCreate1h);
+      c.write = Math.max(c.write, u.cacheCreate);
       calls.set(key, c);
     }
     if (r.type === "attachment" && r.attachment?.type) {
@@ -112,8 +116,11 @@ export function contextReport(lines: string[]): ContextReport {
 
   for (const c of calls.values()) {
     c.t.cache.read += c.read;
-    c.t.cache.write5m += c.write5m;
-    c.t.cache.write1h += c.write1h;
+    // the split cannot exceed the write it is part of (a fallback call carries the
+    // refused attempt's split with a top-level write of 0), as in parse.ts
+    const w1h = Math.min(c.write1h, c.write);
+    c.t.cache.write5m += Math.min(c.write5m, c.write - w1h);
+    c.t.cache.write1h += w1h;
   }
 
   // metadata written after the last turn_duration (title, mode, …) is not a turn; a
