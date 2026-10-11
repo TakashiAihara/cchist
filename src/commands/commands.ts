@@ -1,5 +1,5 @@
 import { iterFiltered } from "../lib/records";
-import { table, fmtNum, trunc, json } from "../lib/format";
+import { table, fmtNum, trunc, json, oneLine } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
 type Source = "slash" | "tool" | "all";
@@ -109,7 +109,7 @@ export function commands(opts: Opts): void {
     table(
       ["command", "count", "share"],
       rows.map(([k, c]) => [
-        trunc(k, 40),
+        trunc(oneLine(k), 40),
         fmtNum(c),
         total ? ((c / total) * 100).toFixed(1) + "%" : "-",
       ]),

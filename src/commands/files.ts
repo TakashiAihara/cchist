@@ -1,5 +1,5 @@
 import { iterFiltered } from "../lib/records";
-import { table, fmtNum, trunc, json } from "../lib/format";
+import { table, fmtNum, trunc, json, oneLine } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
 type Opts = CommonFilter & { json?: boolean; top?: string };
