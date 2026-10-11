@@ -1,6 +1,7 @@
 type Tok = { kind: "word"; text: string; subs: string[] } | { kind: "op" | "redir"; text: string };
 
 // longest first, so `&&` is not read as two `&`
+// (`;;&` lexes as `;;` then `&`, which ends the item the same way)
 const OPS = ["&&", "||", ";;", ";&", "|&", ";", "|", "&", "(", ")", "\n"];
 // sticky: matched at an index, so a long command is not copied per token
 const REDIR = /(\d*)(&>>|&>|>>|>\||>&|<<<|<<-|<<|<&|<>|>|<)/y;
@@ -22,6 +23,8 @@ const RESERVED = new Set([
   "}",
   "fi",
   "done",
+  // an arithmetic command, kept as a word only for the substitutions in it
+  "((",
 ]);
 
 /**
@@ -40,8 +43,12 @@ export function commandNames(cmd: string, depth = 0): string[] {
   let target = false;
   let pattern = false;
 
-  // inside an unclosed [[ ]]
-  const inTest = () => words[0] === "[[" && !words.includes("]]");
+  // inside an unclosed [[ ]], wherever it starts (`if [[ a && b ]]`)
+  let inTest = false;
+  const sub = (t: { subs: string[] }) => {
+    if (depth < MAX_DEPTH)
+      for (const s of t.subs) for (const n of commandNames(s, depth + 1)) names.push(n);
+  };
 
   const finish = () => {
     for (let i = 0; i < words.length; i++) {
@@ -68,20 +75,24 @@ export function commandNames(cmd: string, depth = 0): string[] {
       break;
     }
     words = [];
+    inTest = false;
   };
 
   const toks = lex(cmd);
   for (let k = 0; k < toks.length; k++) {
     const t = toks[k]!;
     if (t.kind === "word") {
-      if (depth < MAX_DEPTH)
-        for (const sub of t.subs) for (const n of commandNames(sub, depth + 1)) names.push(n);
+      sub(t);
+      if (t.text === "[[") inTest = true;
+      else if (t.text === "]]") inTest = false;
       if (target) target = false;
       else words.push(t.text);
     } else if (t.kind === "redir") {
       target = true;
-    } else if (t.text === "(" && pattern) {
-      // `(pat)` opens a case pattern
+    } else if (inTest && ["(", ")", "|", "&&", "||"].includes(t.text)) {
+      // inside [[ ]]: grouping, regex alternation and conditions, not commands
+    } else if (t.text === "(" && (pattern || words.at(-1) === "in")) {
+      // `(pat)` opens a case pattern, also right after `case x in`
     } else if (t.text === "(" && words.length && words.every((w) => RESERVED.has(w))) {
       // `time (a; b)` / `! (a)`: a subshell after a keyword
       words = [];
@@ -93,23 +104,30 @@ export function commandNames(cmd: string, depth = 0): string[] {
         k++;
         continue;
       }
-      // `xs=(a b)` is an array and `*.zip(N)` a zsh glob qualifier: neither runs a command
-      for (let open = 1; open && k + 1 < toks.length; ) {
-        const u = toks[++k]!;
-        if (u.kind === "op" && u.text === "(") open++;
-        else if (u.kind === "op" && u.text === ")") open--;
+      // `xs=(a b)` is an array and `*.zip(N)` a zsh glob qualifier: no command runs,
+      // though a $( ) inside `xs=($(git ls-files))` does
+      let end = k;
+      for (let open = 1; open && end + 1 < toks.length; ) {
+        const u = toks[++end]!;
+        if (u.text === "(") open++;
+        else if (u.text === ")" && --open === 0) {
+          for (const u of toks.slice(k + 1, end)) if (u.kind === "word") sub(u);
+          k = end;
+        }
       }
+      // an unclosed `(` hides nothing: the tokens after it are read as usual
     } else if (t.text === ")" && pattern) {
       words = [];
       pattern = false;
     } else if (t.text === "|" && pattern) {
       // `a|b)`: another alternative of the same pattern
-    } else if ((t.text === "&&" || t.text === "||") && inTest()) {
-      // a condition inside [[ ]], not a new command
     } else {
       finish();
-      // `;;` only ends a case item, so a pattern comes next
+      // `;;` and `;&` end a case item, so a pattern comes next (after `;&` too: it
+      // runs the next body, but `pat)` is still written); a `)` that ended the
+      // segment (`case x in a)` on one line) has closed the pattern already
       if (t.text === ";;" || t.text === ";&") pattern = true;
+      else if (t.text === ")") pattern = false;
     }
   }
   finish();
@@ -142,12 +160,12 @@ function lex(src: string): Tok[] {
     }
     const prev = out.at(-1);
     const atCommand =
-      !prev ||
-      prev.kind === "op" ||
-      (prev.kind === "word" && (RESERVED.has(prev.text) || prev.text === "for"));
+      !prev || prev.kind === "op" || (prev.kind === "word" && RESERVED.has(prev.text));
     if (s.startsWith("((", i) && atCommand) {
       // an arithmetic command runs nothing
-      i = balanced(s, i + 1) + 1;
+      const end = balanced(s, i + 1, true);
+      out.push({ kind: "word", text: "((", subs: arithSubs(s.slice(i + 2, end)) });
+      i = end + 1;
       continue;
     }
     if ((ch === "<" || ch === ">") && s[i + 1] === "(") {
@@ -189,7 +207,8 @@ function readWord(s: string, i: number): { text: string; subs: string[]; end: nu
   const subs: string[] = [];
   const subst = (): boolean => {
     if (s.startsWith("$((", i)) {
-      const end = balanced(s, i + 1);
+      const end = balanced(s, i + 1, true);
+      subs.push(...arithSubs(s.slice(i + 3, end)));
       text += s.slice(i, end + 1);
       i = end + 1;
       return true;
@@ -242,8 +261,12 @@ function readWord(s: string, i: number): { text: string; subs: string[]; end: nu
         else if (c === "'") {
           const e = s.indexOf("'", i + 1);
           i = e < 0 ? s.length : e + 1;
+        } else if (c === '"') {
+          // a quoted `}` inside the default (`${x:-"}"}`) does not close it
+          for (i++; i < s.length && s[i] !== '"'; i++) if (s[i] === "\\") i++;
+          i++;
         } else if (c === "$" && s[i + 1] === "(") {
-          const e = balanced(s, i + 1);
+          const e = balanced(s, i + 1, s[i + 2] === "(");
           if (s[i + 2] !== "(") subs.push(s.slice(i + 2, e));
           i = e + 1;
         } else if (c === "`") {
@@ -264,6 +287,18 @@ function readWord(s: string, i: number): { text: string; subs: string[]; end: nu
     }
   }
   return { text, subs, end: i };
+}
+
+/** The $( ) bodies inside an arithmetic expression: `$(( $(wc -l < f) + 1 ))` runs wc. */
+function arithSubs(expr: string): string[] {
+  const subs: string[] = [];
+  for (let i = expr.indexOf("$("); i >= 0; i = expr.indexOf("$(", i + 1)) {
+    if (expr[i + 2] === "(") continue;
+    const end = balanced(expr, i + 1);
+    subs.push(expr.slice(i + 2, end));
+    i = end;
+  }
+  return subs;
 }
 
 /** `w` with each substitution, however nested, shown as `$(…)`. */
@@ -304,12 +339,20 @@ const HEREDOC = /<<(-?)[ \t]*(['"]?)([^\s'"();&|<>]+)\2/y;
  * Index of the ")" that closes the "(" at `open`, skipping quoted text, nested
  * parens and heredoc bodies (a commit message in $(cat <<'EOF' ...) has quotes).
  */
-function balanced(s: string, open: number): number {
+function balanced(s: string, open: number, arith = false, nest = 0): number {
+  // only generated input nests quotes and $( ) this deep; stop instead of overflowing
+  if (nest > 1000) return s.length;
   let depth = 0;
   for (let i = open; i < s.length; i++) {
     const ch = s[i]!;
     HEREDOC.lastIndex = i;
-    const h = ch === "<" && s[i + 2] !== "<" ? HEREDOC.exec(s) : null;
+    if (s.startsWith("<<<", i)) {
+      // a herestring, not a heredoc; skip all three so `<< "x"` is not seen at i + 1
+      i += 2;
+      continue;
+    }
+    // in $(( )) and (( )), << is a shift
+    const h = !arith && ch === "<" ? HEREDOC.exec(s) : null;
     if (h) {
       const nl = s.indexOf("\n", i);
       if (nl < 0) return s.length;
@@ -324,7 +367,7 @@ function balanced(s: string, open: number): number {
       // a double-quoted string can hold \" and its own $( ), which may nest more quotes
       for (i++; i < s.length && s[i] !== '"'; i++) {
         if (s[i] === "\\") i++;
-        else if (s.startsWith("$(", i)) i = balanced(s, i + 1);
+        else if (s.startsWith("$(", i)) i = balanced(s, i + 1, s[i + 2] === "(", nest + 1);
       }
     } else if (ch === "(") depth++;
     else if (ch === ")" && --depth === 0) return i;

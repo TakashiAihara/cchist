@@ -128,7 +128,8 @@ head` counts cd, git and head once each, and `SP=$(scratchpad)` counts scratchpa
 Commands in `$( )`, backticks, subshells and later lines of a script count;
 assignments, redirect targets, comments, heredoc bodies, `for` / `case` headers,
 case patterns and function names do not. A wrapper (`env`, `timeout`, `command`,
-`sudo`) counts as itself. `count` and `share` are therefore per command run, not per
+`sudo`) counts as itself, and so do the test commands `[` and `[[` (`if [ -f x ]`
+counts `[`). `count` and `share` are therefore per command run, not per
 Bash call; `--full` keys by the whole call instead.
 
 ### `commands` / `tools`

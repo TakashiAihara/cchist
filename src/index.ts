@@ -144,7 +144,7 @@ addExclude(
   program
     .command("bash")
     .description(
-      "most-run commands: each command a Bash call runs counts once (--full: one key per call)",
+      "most-run commands: each command in a Bash call counts once per occurrence (--full: one key per call)",
     )
     .argument(
       "[id]",
