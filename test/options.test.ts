@@ -1,5 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { intOption } from "../src/lib/options";
 
 describe("intOption", () => {
@@ -24,16 +26,25 @@ describe("intOption", () => {
 });
 
 describe("every numeric option exits 3 on bad input, before reading sessions", () => {
-  // a missing projects dir: validation must happen before any session is looked up
+  // a session that lists but cannot be read (a directory named like one): a command
+  // that read it before validating would exit 1 (EISDIR) instead of 3
+  let root: string;
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), "cchist-opts-"));
+    mkdirSync(join(root, "-p", "unreadable.jsonl"), { recursive: true });
+  });
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
   const run = (args: string[]) =>
     Bun.spawnSync(["bun", "run", "src/index.ts", ...args], {
       cwd: join(import.meta.dir, ".."),
-      env: {
-        ...process.env,
-        CCHIST_PROJECTS_DIR: "/nonexistent-cchist",
-        CCHIST_CONFIG: "/nonexistent-cchist.json",
-      },
+      env: { ...process.env, CCHIST_PROJECTS_DIR: root, CCHIST_CONFIG: join(root, "none.json") },
     }).exitCode;
+
+  test("positive control: a valid value does read the session and fails on it", () => {
+    expect(run(["bash", "--top", "5"])).toBe(1);
+  });
 
   for (const args of [
     ["bash", "--top", "-1"],
@@ -45,6 +56,8 @@ describe("every numeric option exits 3 on bad input, before reading sessions", (
     ["search", "q", "--context", "-1"],
     ["read", "latest", "--budget", "x"],
     ["outline", "latest", "--budget", "-5"],
+    ["read", "latest", "--truncate", "0"],
+    ["activity", "--idle-gap", "x"],
   ]) {
     test(args.join(" "), () => {
       expect(run(args)).toBe(3);
