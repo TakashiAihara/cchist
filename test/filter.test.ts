@@ -91,6 +91,44 @@ describe("parseSince", () => {
   test("an empty --since is invalid, not unset", () => {
     expect(() => parseSince("")).toThrow(/invalid --since/);
   });
+
+  test("a date-time without a zone is local; with Z or an offset it is that zone", () => {
+    const r = Bun.spawnSync(
+      [
+        "bun",
+        "-e",
+        `import { parseSince as p } from "./src/lib/filter";
+         console.log(JSON.stringify(["2026-06-01T09:00", "2026-06-01 09:00:30", "2026-06-01T09:00:00.5",
+           "2026-06-01T09:00Z", "2026-06-01T09:00+02:00", "2026-06-01 09:00z", "2026-06-01t09:00+0200",
+           "2026-06-01T09:00:00.25-01:30", "2026-06-01T09:00:00.05Z", "2026-06-01T09:00:00.9995Z", "2026-06-01T09:00:00.99999999999999999999Z"].map(p)));`,
+      ],
+      { cwd: join(import.meta.dir, ".."), env: { ...process.env, TZ: "Asia/Tokyo" } },
+    );
+    expect(JSON.parse(r.stdout.toString())).toEqual([
+      1780272000000, 1780272030000, 1780272000500, 1780304400000, 1780297200000, 1780304400000,
+      1780297200000, 1780309800250, 1780304400050, 1780304400999, 1780304400999,
+    ]);
+  });
+
+  for (const bad of [
+    "1",
+    "0",
+    "2026",
+    "2026-06",
+    "2026-02-30T00:00",
+    "2026-06-01T25:00",
+    "2026-06-01T09:60",
+    "2026-06-01T09",
+    "June 1, 2026",
+    "2026-06-01T09:00+24:00",
+    "0050-01-01",
+    "2026-06-01T09:00+09:60",
+    "2026-06-01T09:00+9:00",
+  ]) {
+    test(`${JSON.stringify(bad)} is not a --since`, () => {
+      expect(() => parseSince(bad)).toThrow(/invalid --since/);
+    });
+  }
 });
 
 describe("keepSession", () => {

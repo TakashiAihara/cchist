@@ -190,7 +190,8 @@ over every session before the filters run, so `--cwd` or
 
 `--since` keeps the sessions active since the date and then counts only the events
 at or after it, so `stats --by day --since 2026-06-01` starts on that day. A bare
-date means local midnight (the same zone as the days). `--by day`
+date means local midnight (the same zone as the days; the accepted forms are under
+Common flags). `--by day`
 puts each event on the local date it happened (set `TZ` to change the zone); its
 `sess` column counts the sessions active that day, so a session spanning midnight
 counts on both days. `sessions list` shows the output a session owns the same way
@@ -212,15 +213,21 @@ A tool call longer than the idle gap writes nothing while it runs, so it counts 
 
 - `--local` — only sessions whose `cwd` equals the current directory
 - `--cwd <path>` — only sessions with that `cwd`
-- `--since <date>` — only sessions active on/after the ISO date (a bare date is local midnight)
+- `--since <date>` — only sessions active on/after an ISO date or date-time (a bare date is local midnight, a date-time without a zone is local time)
 - `--exclude-cwd <glob>` — drop sessions whose `cwd` matches the glob (repeatable)
 - `--exclude-entrypoint <val>` — drop sessions with that `entrypoint`, e.g. `sdk-cli` (repeatable)
 - `--json` — machine-readable output (otherwise a human table)
 
 Human-readable times are local with their UTC offset (`2026-10-01 12:25+09:00`), and
 `stats --by day` / `activity` use the same local zone; set `TZ` to change it. `--json`
-keeps the timestamps as the JSONL records them (ISO, UTC `Z`). `--since` takes any ISO
-value: a bare date is local midnight, a date with a time and no offset is local time.
+keeps the timestamps as the JSONL records them (ISO, UTC `Z`). `--since` takes an ISO
+date or date-time: a bare date is local midnight, a date-time without a zone is local
+time, and `Z` / `+09:00` / `+0900` (any case) give the zone. Earlier versions took
+anything `Date.parse` read (`2026`, `June 1, 2026`); those now exit 3, and so does a
+field that rolls over. `sessions latest` and the commands that read sessions one by
+one (`bash`, `files`, `activity`, `search`) skip files last written more than a day
+before `--since` (a file is written after its records); `sessions list`, `stats`,
+`tokens`, `tools` and `commands` read every file, to credit copied calls.
 
 `--exclude-cwd` globs are simple: `*` matches any run, `?` one char, everything
 else is literal.
@@ -291,7 +298,7 @@ kind:
 | 0    | `OK`           | success (including aggregation commands that return zero rows — see below) |
 | 1    | `ERROR`        | unexpected / generic failure |
 | 2    | `NOT_FOUND`    | requested **target** absent — session id doesn't match, `sessions latest` finds nothing, **`search` produces zero matches**, `read` ranges select no messages, `path` has no recorded cwd |
-| 3    | `INVALID_INPUT`| user input malformed — bad message range, unsupported `--source` / shell value, unparseable `--since` date, an empty session id, or a common filter combined with a named session (`bash <id>`, `search --session`) |
+| 3    | `INVALID_INPUT`| user input malformed — bad message range, unsupported `--source` / shell value, a `--since` that is not an ISO date or date-time, an empty session id, or a common filter combined with a named session (`bash <id>`, `search --session`) |
 
 #### "Zero results" is not always NOT_FOUND
 

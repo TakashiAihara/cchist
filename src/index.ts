@@ -58,7 +58,7 @@ addExclude(
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
       "--since <date>",
-      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+      "only sessions active on/after this date (ISO date or date-time; without a zone it is local time)",
     )
     .option("--limit <n>", "max rows (default: 20)")
     .option(
@@ -76,7 +76,7 @@ addExclude(
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
       "--since <date>",
-      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+      "only sessions active on/after this date (ISO date or date-time; without a zone it is local time)",
     )
     .option("--json", "full session meta as JSON"),
 ).action(sessionsLatest);
@@ -107,7 +107,7 @@ addExclude(
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
       "--since <date>",
-      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+      "only sessions active on/after this date (ISO date or date-time; without a zone it is local time)",
     )
     .option("--json", "machine-readable output"),
 ).action(stats);
@@ -121,7 +121,7 @@ addExclude(
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
       "--since <date>",
-      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+      "only sessions active on/after this date (ISO date or date-time; without a zone it is local time)",
     )
     .option("--json", "machine-readable output"),
 ).action(tokens);
@@ -135,7 +135,7 @@ addExclude(
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
       "--since <date>",
-      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+      "only sessions active on/after this date (ISO date or date-time; without a zone it is local time)",
     )
     .option("--json", "machine-readable output"),
 ).action(tools);
@@ -163,7 +163,7 @@ addExclude(
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
       "--since <date>",
-      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+      "only sessions active on/after this date (ISO date or date-time; without a zone it is local time)",
     )
     .option("--json", "machine-readable output"),
 ).action(bash);
@@ -177,7 +177,7 @@ addExclude(
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
       "--since <date>",
-      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+      "only sessions active on/after this date (ISO date or date-time; without a zone it is local time)",
     )
     .option("--json", "machine-readable output"),
 ).action(files);
@@ -194,7 +194,7 @@ addExclude(
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
       "--since <date>",
-      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+      "only sessions active on/after this date (ISO date or date-time; without a zone it is local time)",
     )
     .option("--json", "machine-readable output"),
 ).action(activity);
@@ -220,7 +220,7 @@ addExclude(
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
       "--since <date>",
-      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+      "only sessions active on/after this date (ISO date or date-time; without a zone it is local time)",
     )
     .option("--json", "machine-readable output"),
 ).action(commands);
@@ -246,7 +246,7 @@ addExclude(
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
       "--since <date>",
-      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+      "only sessions active on/after this date (ISO date or date-time; without a zone it is local time)",
     )
     .option("--json", "machine-readable output"),
 ).action(search);

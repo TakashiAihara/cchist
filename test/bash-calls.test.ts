@@ -88,8 +88,8 @@ describe("bash --with-results (CLI)", () => {
         .map((r) => JSON.stringify(r))
         .join("\n") + "\n",
     );
-    utimesSync(orig, 1_780_000_000, 1_780_000_000);
-    utimesSync(copy, 1_780_100_000, 1_780_100_000);
+    utimesSync(orig, 1_790_000_000, 1_790_000_000);
+    utimesSync(copy, 1_790_100_000, 1_790_100_000);
   });
   afterAll(() => {
     rmSync(root, { recursive: true, force: true });

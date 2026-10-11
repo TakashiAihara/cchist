@@ -83,8 +83,8 @@ describe("activity --json", () => {
       // a resumed copy of the first two records (same uuids) must not be counted again
       writeFileSync(join(root, "-p", "u.jsonl"), [rec(0), rec(5)].join("\n") + "\n");
       // the copy is written after the original, so it is the newer file
-      utimesSync(join(root, "-p", "s.jsonl"), 1_780_000_000, 1_780_000_000);
-      utimesSync(join(root, "-p", "u.jsonl"), 1_780_100_000, 1_780_100_000);
+      utimesSync(join(root, "-p", "s.jsonl"), 1_790_000_000, 1_790_000_000);
+      utimesSync(join(root, "-p", "u.jsonl"), 1_790_100_000, 1_790_100_000);
       // a second session overlapping 0-5 adds to the sum but not the wall clock
       writeFileSync(join(root, "-p", "t.jsonl"), [rec(1), rec(4)].join("\n") + "\n");
       const run = (...extra: string[]) =>
