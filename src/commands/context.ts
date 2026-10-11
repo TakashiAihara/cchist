@@ -18,7 +18,8 @@ export type Turn = {
   // cache tokens summed over the turn's calls, each call once; synthetic API-error
   // replies are skipped
   cache: { read: number; write5m: number; write1h: number };
-  // compactions inside the turn, so a drop in context has its cause on the row
+  // compactions inside the turn; the drop they cause shows on this row's change, or
+  // on the next row's when the turn's largest call came before the compaction
   compacts: { trigger: string; preTokens: number; postTokens: number }[];
   // characters of each attachment type injected during the turn
   attachments: Record<string, number>;
@@ -34,13 +35,14 @@ export type ContextReport = {
  * measure each: the context size of its API calls and the attachments injected
  * in it. A turn's size is its largest call, so a jump shows on the turn that
  * caused it. An attachment's size is the length of its whole JSON record (keys
- * included) as JavaScript writes it, in characters, not tokens: Python's
- * json.dumps escapes non-ASCII as \uXXXX and so counts Japanese text about 6
- * times over.
+ * included) as JavaScript writes it, in UTF-16 units, not tokens. session-truncate
+ * measures with Python's json.dumps, which escapes non-ASCII as \uXXXX: 6
+ * characters for each Japanese one, about 3.4 times this count on real
+ * instructions / nested_memory attachments.
  *
  * shortcut: a prompt sent after an interrupt has no turn_duration before it, so it
- * merges into the previous turn's row (about 6% of prompts); if that starts hiding
- * jumps, also split on user records that are prompts (not tool results).
+ * merges into the previous turn's row (about 6% of prompts, #61); if that starts
+ * hiding jumps, also split on user records that are prompts (not tool results).
  */
 export function contextReport(lines: string[]): ContextReport {
   const turns: Turn[] = [];
@@ -153,6 +155,8 @@ export function context(idOrLatest: string, opts: Opts): void {
       t.context ? fmtK(t.context) : "-",
       ...(window ? [t.context ? `${((t.context / window) * 100).toFixed(0)}%` : "-"] : []),
       delta > 0 ? `+${fmtK(delta)}` : delta < 0 ? `-${fmtK(-delta)}` : "",
+      fmtK(t.cache.read),
+      `${fmtK(t.cache.write5m)}/${fmtK(t.cache.write1h)}`,
       t.compacts.map((c) => `${c.trigger} ${fmtK(c.preTokens)}→${fmtK(c.postTokens)}`).join(", "),
       top,
     ];
@@ -167,6 +171,8 @@ export function context(idOrLatest: string, opts: Opts): void {
         "context",
         ...(window ? ["of window"] : []),
         "change",
+        "cache read",
+        "write 5m/1h",
         "compact",
         "attachments (chars)",
       ],

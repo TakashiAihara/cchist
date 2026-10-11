@@ -97,6 +97,17 @@ describe("contextReport", () => {
     ]);
   });
 
+  test("an unfinished last turn stays when it holds a compaction or an attachment", () => {
+    const boundary = L({
+      type: "system",
+      subtype: "compact_boundary",
+      compactMetadata: { trigger: "auto", preTokens: 2, postTokens: 1 },
+    });
+    expect(contextReport([end, boundary]).turns.length).toBe(1);
+    expect(contextReport([end, att("x", "")]).turns.length).toBe(1);
+    expect(contextReport([end, L({ type: "ai-title" })]).turns.length).toBe(0);
+  });
+
   test("a closed turn with nothing sent in it stays", () => {
     const t = contextReport([L({ type: "user", message: { content: "x" } }), end]).turns;
     expect(t.map((x) => [x.line, x.end])).toEqual([[1, 2]]);
@@ -159,11 +170,15 @@ describe("cchist context (CLI)", () => {
       "start",
       "context",
       "change",
+      "cache read",
+      "write 5m/1h",
       "compact",
       "attachments (chars)",
     ]);
     expect(row(out, "2").slice(0, 3)).toEqual(["2", "9", "17"]);
     expect(row(out, "2")).toContain("+11.8k");
+    expect(row(out, "2")).toContain("9.1k");
+    expect(row(out, "2")).toContain("14/4.0k");
     const third = row(out, "3");
     expect(third).toContain("-12.1k");
     expect(third).toContain("auto 13.0k→900, manual 950→400");
