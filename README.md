@@ -71,8 +71,8 @@ cchist path <id|latest>                # resolve a session id to its real cwd
 cchist outline <id|latest>             # turn-by-turn structural map of a session
 cchist read <id|latest> [m3..m7 ...]   # read message ranges with a token budget
 
-cchist stats  --by day|repo|model|session [--since 2026-06-01] [--local]
-cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage (once per API call)
+cchist stats  --by day|repo|model|session [--since 2026-06-01] [--local] [--cost]
+cchist tokens [--since 2026-06-01] [--local] [--cost]  # grand-total token usage (once per API call)
 cchist tools  [--since 2026-06-01] [--local]      # tool-call frequency
 cchist tools  --expand-skills                     # break Skill into Skill:<name>
 cchist bash   [--top 25] [--full]                 # most-used Bash commands
@@ -352,8 +352,14 @@ is set), `bun install` still succeeds and prints why no hook was installed
 ## Design
 
 See [`docs/design/cchist.md`](docs/design/cchist.md) for the data model, command
-surface, and the alternatives that were considered. Cost estimation is a planned
-phase-2 feature (needs a verified per-model pricing table).
+surface, and the alternatives that were considered.
+
+`tokens --cost` adds a per-model table (calls, input, output, cache read, 5m and 1h
+cache writes, USD) and `stats --cost` a USD column, at the list API prices in
+[`src/lib/pricing.ts`](src/lib/pricing.ts) (copied from the Claude pricing page on
+2026-10-11). These are list prices: a subscription does not bill per token. A model
+missing from the table shows `?` and is named under the table; fast mode, US-only
+inference and web search fees are not priced.
 
 ## Release (maintainer)
 

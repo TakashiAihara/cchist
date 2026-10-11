@@ -88,13 +88,20 @@ export function parseSession(file: string): SessionMeta {
           output: u.output_tokens || 0,
           cacheRead: u.cache_read_input_tokens || 0,
           cacheCreate: u.cache_creation_input_tokens || 0,
+          // a few records give the 1h split but 0 at the top level; trust the top level
+          cacheCreate1h: Math.min(
+            u.cache_creation?.ephemeral_1h_input_tokens || 0,
+            u.cache_creation_input_tokens || 0,
+          ),
           webSearch: u.server_tool_use?.web_search_requests || 0,
           webFetch: u.server_tool_use?.web_fetch_requests || 0,
         };
         const seen = key ? seenCalls.get(key) : undefined;
         if (seen) maxUsage(seen.usage, usage);
         else {
-          const call: Call = { key, ts: rec.timestamp ?? null, usage };
+          const model =
+            rec.message.model && rec.message.model !== "<synthetic>" ? rec.message.model : null;
+          const call: Call = { key, ts: rec.timestamp ?? null, model, usage };
           meta.events.calls.push(call);
           if (key) seenCalls.set(key, call);
         }

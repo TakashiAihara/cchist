@@ -214,7 +214,5 @@ package.json と同じ値が出る。`.version("...")` ハードコードと pac
 
 ## 未実装 (phase 2)
 
-- cost 算出: model 別単価テーブルが必要。単価は変動するため claude-api skill で確定値を取ってから実装する
-  (training data の記憶で単価を埋めない)。`tokens --cost` として追加予定。
 - semantic (vector) 検索: 設計を [`semantic-search.md`](semantic-search.md) に分離。オフライン完結を
   最優先する方針で、lexical な `cchist search` (実装済み) の `--semantic` 拡張として計画。着手は未定。

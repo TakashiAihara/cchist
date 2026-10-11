@@ -101,6 +101,7 @@ addExclude(
     .command("stats")
     .description("aggregate token/turn/tool stats across sessions")
     .option("--by <key>", "group by: session|day|repo|model", "session")
+    .option("--cost", "add a USD column at list API prices (see src/lib/pricing.ts)")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
@@ -114,6 +115,7 @@ addExclude(
   program
     .command("tokens")
     .description("grand-total token usage across sessions")
+    .option("--cost", "add USD per model at list API prices (see src/lib/pricing.ts)")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
     .option(

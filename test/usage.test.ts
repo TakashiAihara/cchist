@@ -142,6 +142,7 @@ describe("parseSession usage", () => {
       output: 22,
       cacheRead: 1003,
       cacheCreate: 9,
+      cacheCreate1h: 0,
       webSearch: 0,
       webFetch: 0,
     });
