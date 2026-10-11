@@ -70,6 +70,7 @@ cchist show <id|latest> [--tools] [--thinking] [--json]
 cchist path <id|latest>                # resolve a session id to its real cwd
 cchist outline <id|latest>             # turn-by-turn structural map of a session
 cchist read <id|latest> [m3..m7 ...]   # read message ranges with a token budget
+cchist context <id|latest> [--window <tokens>]  # per-turn context size + attachments injected
 
 cchist stats  --by day|repo|model|session [--since 2026-06-01] [--local]
 cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage (once per API call)
@@ -96,8 +97,8 @@ Session ids are printed in full (the 36-char uuid) everywhere — `sessions list
 `stats --by session`, `search`, `search --group` — so the value on screen can be
 pasted straight into another subcommand. Nothing abbreviates them to a prefix.
 
-Anywhere an `<id>` is taken (`show`, `path`, `outline`, `read`, `bash <id>`,
-`search --session`) a unique prefix works too, and the literal `latest` is the most
+Anywhere an `<id>` is taken (`show`, `path`, `outline`, `read`, `context`,
+`bash <id>`, `search --session`) a unique prefix works too, and the literal `latest` is the most
 recently modified session file. `latest` there is a plain lookup — `show` / `path`
 / `outline` / `read` take no filters at all. To pick the newest session in a given scope, resolve
 it first: `cchist show "$(cchist sessions latest --local)"`. `bash <id>` and
@@ -281,8 +282,8 @@ kind:
 
 cchist splits commands into two families that handle empty results differently:
 
-- **Target commands** (`show` / `path` / `outline` / `read` / `sessions latest` /
-  `search`) ask for a specific thing. "Not present" → exit 2.
+- **Target commands** (`show` / `path` / `outline` / `read` / `context` /
+  `sessions latest` / `search`) ask for a specific thing. "Not present" → exit 2.
 - **Aggregation commands** (`sessions list` / `stats` / `tokens` / `tools` /
   `bash` / `files` / `activity` / `commands`) summarize whatever the filters
   match. An empty result is a *valid* summary (the answer is "zero"), so they

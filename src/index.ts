@@ -13,6 +13,7 @@ import { activity, DEFAULT_IDLE_GAP_MIN } from "./commands/activity";
 import { search } from "./commands/search";
 import { commands } from "./commands/commands";
 import { outline } from "./commands/outline";
+import { context } from "./commands/context";
 import { read } from "./commands/read";
 import { completion } from "./commands/completion";
 import { AppError, EXIT, invalidInput } from "./lib/errors";
@@ -254,6 +255,14 @@ program
   .option("--no-budget", "disable output budgeting")
   .option("--json", "machine-readable output")
   .action(outline);
+
+program
+  .command("context")
+  .argument("<id>", "session id (prefix ok), 'latest', or a path to a .jsonl")
+  .description("per-turn context size and the attachments injected in each turn")
+  .option("--window <tokens>", "context window size, to show each turn as a share of it")
+  .option("--json", "machine-readable output")
+  .action(context);
 
 program
   .command("read")
