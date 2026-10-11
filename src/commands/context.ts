@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { resolveSessionFile } from "../lib/discover";
+import { tokenCounts } from "../lib/parse";
 import { notFound } from "../lib/errors";
 import { fmtK, fmtNum, fmtTs, json, table } from "../lib/format";
 import { intOption } from "../lib/options";
@@ -86,19 +87,16 @@ export function contextReport(lines: string[]): ContextReport {
       const m = r.compactMetadata;
       t.compacts.push({ trigger: m.trigger, preTokens: m.preTokens, postTokens: m.postTokens });
     }
-    const u = r.type === "assistant" && !r.isApiErrorMessage ? r.message?.usage : null;
-    if (u) {
-      const size =
-        (u.input_tokens || 0) +
-        (u.cache_read_input_tokens || 0) +
-        (u.cache_creation_input_tokens || 0);
-      t.context = Math.max(t.context, size);
+    const raw = r.type === "assistant" && !r.isApiErrorMessage ? r.message?.usage : null;
+    if (raw) {
+      const u = tokenCounts(raw);
+      t.context = Math.max(t.context, u.input + u.cacheRead + u.cacheCreate);
       const key = r.message?.id && r.requestId ? `${r.message.id}:${r.requestId}` : `line ${i}`;
       const c = calls.get(key) ?? { t, read: 0, write5m: 0, write1h: 0 };
       // a copy may be partial (zeroed), so the fullest one wins, as in parse.ts
-      c.read = Math.max(c.read, u.cache_read_input_tokens || 0);
-      c.write5m = Math.max(c.write5m, u.cache_creation?.ephemeral_5m_input_tokens || 0);
-      c.write1h = Math.max(c.write1h, u.cache_creation?.ephemeral_1h_input_tokens || 0);
+      c.read = Math.max(c.read, u.cacheRead);
+      c.write5m = Math.max(c.write5m, u.cacheCreate5m);
+      c.write1h = Math.max(c.write1h, u.cacheCreate1h);
       calls.set(key, c);
     }
     if (r.type === "attachment" && r.attachment?.type) {

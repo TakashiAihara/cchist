@@ -85,12 +85,9 @@ export function parseSession(file: string): SessionMeta {
       // one response is written as one line per content block, each repeating its usage
       const key = rec.message.id && rec.requestId ? `${rec.message.id}:${rec.requestId}` : null;
       if (u) {
+        const { cacheCreate5m: _, ...counts } = tokenCounts(u);
         const usage = {
-          input: u.input_tokens || 0,
-          output: u.output_tokens || 0,
-          cacheRead: u.cache_read_input_tokens || 0,
-          cacheCreate: u.cache_creation_input_tokens || 0,
-          cacheCreate1h: u.cache_creation?.ephemeral_1h_input_tokens || 0,
+          ...counts,
           webSearch: u.server_tool_use?.web_search_requests || 0,
           webFetch: u.server_tool_use?.web_fetch_requests || 0,
         };
@@ -148,4 +145,38 @@ function firstText(content: unknown): string {
   if (!Array.isArray(content)) return "";
   const b = content.find((x: any) => x?.type === "text" && typeof x.text === "string");
   return b ? b.text : "";
+}
+
+/**
+ * Token counts of one `message.usage`. A few records leave the top level at 0 and
+ * carry the real counts in `usage.iterations`; then the iterations are summed. When
+ * the top level has counts it is used as is: on a fallback call it already holds
+ * the iteration that was served, and the refused one before it is not billed there.
+ */
+export function tokenCounts(u: any): {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheCreate: number;
+  cacheCreate5m: number;
+  cacheCreate1h: number;
+} {
+  const one = (x: any) => ({
+    input: x?.input_tokens || 0,
+    output: x?.output_tokens || 0,
+    cacheRead: x?.cache_read_input_tokens || 0,
+    cacheCreate: x?.cache_creation_input_tokens || 0,
+    cacheCreate5m: x?.cache_creation?.ephemeral_5m_input_tokens || 0,
+    cacheCreate1h: x?.cache_creation?.ephemeral_1h_input_tokens || 0,
+  });
+  const top = one(u);
+  if (top.input + top.output + top.cacheRead + top.cacheCreate || !Array.isArray(u?.iterations)) {
+    return top;
+  }
+  const sum = one(null);
+  for (const it of u.iterations) {
+    const c = one(it);
+    for (const k of Object.keys(sum) as (keyof typeof sum)[]) sum[k] += c[k];
+  }
+  return sum;
 }
