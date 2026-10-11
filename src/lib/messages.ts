@@ -133,7 +133,9 @@ function queuedTexts(recs: any[]): Map<number, { ts: string | null; text: string
   const out = new Map<number, { ts: string | null; text: string }>();
   const deliveries: { pos: number; text: string; used: boolean }[] = [];
   recs.forEach((r, pos) => {
-    if (r.type === "user" && r.message && !r.isMeta) {
+    // meta user records count too: a machine prompt (usage-limit reset, scheduled
+    // task) is enqueued and then delivered as one, and must not look typed
+    if (r.type === "user" && r.message) {
       deliveries.push({ pos, text: textOf(r.message.content).trim(), used: false });
     }
     const a = promptAttachment(r);

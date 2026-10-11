@@ -64,6 +64,12 @@ describe("queued messages in read / outline", () => {
     expect(out).not.toContain("── m1 ");
   });
 
+  test("read m0.q1 prints just that queued message", async () => {
+    const out = await cli(["read", file(), "m0.q1"]);
+    expect(out).toContain("── m0.q1 user (queued)");
+    expect(out).not.toContain("── m0 user");
+  });
+
   test("--json carries the label and a queued flag", async () => {
     const rows = JSON.parse(await cli(["read", file(), "--json"]));
     expect(rows.map((r: any) => [r.index, r.queued])).toEqual([

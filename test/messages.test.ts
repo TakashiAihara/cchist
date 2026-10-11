@@ -156,9 +156,6 @@ describe("queued (mid-turn) user messages", () => {
     // an older attachment without origin falls back to the text check
     attachment("<task-notification>x</task-notification>", "2026-06-01T00:00:13Z"),
     attachment("<pasted_content>log</pasted_content> see this", "2026-06-01T00:00:14Z"),
-    // pulled back with popAll to edit: never reached the model
-    enqueue("draft I took back", "2026-06-01T00:00:15Z"),
-    op("popAll"),
     enqueue(null, "2026-06-01T00:00:16Z"),
     // the same text typed twice is two messages
     enqueue("again", "2026-06-01T00:00:17Z"),
@@ -201,6 +198,24 @@ describe("queued (mid-turn) user messages", () => {
     const m = messagesFromRecords([
       user("go", "2026-06-01T00:00:00Z"),
       enqueue("[Cross-session idle notice] peer is idle", "2026-06-01T00:00:01Z"),
+    ]);
+    expect(m.map(msgLabel)).toEqual(["m0"]);
+  });
+
+  test("a draft pulled back with popAll never reached the model", () => {
+    const m = messagesFromRecords([
+      user("go", "2026-06-01T00:00:00Z"),
+      enqueue("draft I took back", "2026-06-01T00:00:01Z"),
+      op("popAll"),
+    ]);
+    expect(m.map(msgLabel)).toEqual(["m0"]);
+  });
+
+  test("a machine prompt delivered as a meta user record is not shown as typed", () => {
+    const m = messagesFromRecords([
+      user("go", "2026-06-01T00:00:00Z"),
+      enqueue("Your usage limit has reset", "2026-06-01T00:00:01Z"),
+      { type: "user", isMeta: true, message: { content: "Your usage limit has reset" } },
     ]);
     expect(m.map(msgLabel)).toEqual(["m0"]);
   });

@@ -41,7 +41,7 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
   for (const a of rangeArgs ?? []) {
     const r = parseRange(a);
     if (!r) {
-      throw invalidInput(`invalid range: ${a} (use m3, 3, m3..m7 or 3..7)`);
+      throw invalidInput(`invalid range: ${a} (use m3, 3, m3..m7, 3..7 or m3.q1)`);
     }
     ranges.push(r);
   }
@@ -52,7 +52,7 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
   }
 
   const all = messagesFromRecords(readRecords(file));
-  const selected = all.filter((m) => inAnyRange(m.index, ranges));
+  const selected = all.filter((m) => inAnyRange(m.index, ranges, m.queued));
 
   if (opts.json) {
     return json(
