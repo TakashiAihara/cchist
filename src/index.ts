@@ -55,7 +55,10 @@ addExclude(
     .description("list sessions (newest first)")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
-    .option("--since <date>", "only sessions active on/after this date (ISO)")
+    .option(
+      "--since <date>",
+      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+    )
     .option("--limit <n>", "max rows", "20")
     .option("--json", "machine-readable output"),
 ).action(sessionsList);
@@ -66,7 +69,10 @@ addExclude(
     .description("print the most recent session id (or full meta with --json)")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
-    .option("--since <date>", "only sessions active on/after this date (ISO)")
+    .option(
+      "--since <date>",
+      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+    )
     .option("--json", "full session meta as JSON"),
 ).action(sessionsLatest);
 
@@ -93,7 +99,10 @@ addExclude(
     .option("--by <key>", "group by: session|day|repo|model", "session")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
-    .option("--since <date>", "only sessions active on/after this date (ISO)")
+    .option(
+      "--since <date>",
+      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+    )
     .option("--json", "machine-readable output"),
 ).action(stats);
 
@@ -103,7 +112,10 @@ addExclude(
     .description("grand-total token usage across sessions")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
-    .option("--since <date>", "only sessions active on/after this date (ISO)")
+    .option(
+      "--since <date>",
+      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+    )
     .option("--json", "machine-readable output"),
 ).action(tokens);
 
@@ -114,7 +126,10 @@ addExclude(
     .option("--expand-skills", "break Skill into per-skill rows (Skill:<name>)")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
-    .option("--since <date>", "only sessions active on/after this date (ISO)")
+    .option(
+      "--since <date>",
+      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+    )
     .option("--json", "machine-readable output"),
 ).action(tools);
 
@@ -133,7 +148,10 @@ addExclude(
     )
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
-    .option("--since <date>", "only sessions active on/after this date (ISO)")
+    .option(
+      "--since <date>",
+      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+    )
     .option("--json", "machine-readable output"),
 ).action(bash);
 
@@ -144,7 +162,10 @@ addExclude(
     .option("--top <n>", "max rows", "30")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
-    .option("--since <date>", "only sessions active on/after this date (ISO)")
+    .option(
+      "--since <date>",
+      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+    )
     .option("--json", "machine-readable output"),
 ).action(files);
 
@@ -154,7 +175,10 @@ addExclude(
     .description("active time + hour-of-day histogram")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
-    .option("--since <date>", "only sessions active on/after this date (ISO)")
+    .option(
+      "--since <date>",
+      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+    )
     .option("--json", "machine-readable output"),
 ).action(activity);
 
@@ -177,7 +201,10 @@ addExclude(
     )
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
-    .option("--since <date>", "only sessions active on/after this date (ISO)")
+    .option(
+      "--since <date>",
+      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+    )
     .option("--json", "machine-readable output"),
 ).action(commands);
 
@@ -200,7 +227,10 @@ addExclude(
     .option("--hits-per <n>", "max excerpts per session in grouped output", "2")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
-    .option("--since <date>", "only sessions active on/after this date (ISO)")
+    .option(
+      "--since <date>",
+      "only sessions active on/after this date (ISO; a bare date is local midnight)",
+    )
     .option("--json", "machine-readable output"),
 ).action(search);
 

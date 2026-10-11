@@ -1,6 +1,7 @@
-import { loadSessions } from "../lib/filter";
+import { loadAll, parseSince } from "../lib/filter";
 import { table, fmtK, trunc, json } from "../lib/format";
-import { type CommonFilter, type SessionMeta } from "../lib/types";
+import { type Owned, ownEvents } from "../lib/usage";
+import { type CommonFilter, type SessionMeta, addUsage, emptyUsage, localDay } from "../lib/types";
 
 type StatsOpts = CommonFilter & { by?: string; json?: boolean };
 
@@ -17,8 +18,6 @@ type Group = {
 
 function keyOf(m: SessionMeta, by: string): string {
   switch (by) {
-    case "day":
-      return m.lastTs?.slice(0, 10) ?? "?";
     case "repo":
       return m.cwd ?? "?";
     case "model":
@@ -30,29 +29,62 @@ function keyOf(m: SessionMeta, by: string): string {
 
 export function stats(opts: StatsOpts): void {
   const by = opts.by ?? "session";
-  const metas = loadSessions(opts);
+  const { all, kept } = loadAll(opts);
+  const owned = ownEvents(all, parseSince(opts.since));
 
   const groups = new Map<string, Group>();
-  for (const m of metas) {
-    const k = keyOf(m, by);
-    const g = groups.get(k) ?? {
-      key: k,
-      sessions: 0,
-      turns: 0,
-      input: 0,
-      output: 0,
-      cacheRead: 0,
-      cacheCreate: 0,
-      tools: 0,
-    };
+  const group = (k: string): Group => {
+    let g = groups.get(k);
+    if (!g) {
+      g = {
+        key: k,
+        sessions: 0,
+        turns: 0,
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheCreate: 0,
+        tools: 0,
+      };
+      groups.set(k, g);
+    }
+    return g;
+  };
+  const add = (g: Group, o: Owned) => {
+    const u = emptyUsage();
+    for (const c of o.calls) addUsage(u, c.usage);
+    g.input += u.input;
+    g.output += u.output;
+    g.cacheRead += u.cacheRead;
+    g.cacheCreate += u.cacheCreate;
+    g.turns += o.turns.length;
+    g.tools += o.tools.length;
+  };
+
+  for (const m of kept) {
+    const o = owned.get(m) ?? { calls: [], turns: [], tools: [] };
+    if (by === "day") {
+      // each event lands on its own local day, so `sessions` there means "active that day"
+      const days = new Map<string, Owned>();
+      const at = (ts: string | null) => {
+        const d = localDay(ts);
+        let v = days.get(d);
+        if (!v) days.set(d, (v = { calls: [], turns: [], tools: [] }));
+        return v;
+      };
+      for (const c of o.calls) at(c.ts).calls.push(c);
+      for (const e of o.turns) at(e.ts).turns.push(e);
+      for (const e of o.tools) at(e.ts).tools.push(e);
+      for (const [d, v] of days) {
+        const g = group(d);
+        g.sessions++;
+        add(g, v);
+      }
+      continue;
+    }
+    const g = group(keyOf(m, by));
     g.sessions++;
-    g.turns += m.userTurns;
-    g.input += m.usage.input;
-    g.output += m.usage.output;
-    g.cacheRead += m.usage.cacheRead;
-    g.cacheCreate += m.usage.cacheCreate;
-    g.tools += m.blocks.toolUse;
-    groups.set(k, g);
+    add(g, o);
   }
 
   const rows = [...groups.values()].sort((a, b) => b.output - a.output);

@@ -71,7 +71,7 @@ cchist outline <id|latest>             # turn-by-turn structural map of a sessio
 cchist read <id|latest> [m3..m7 ...]   # read message ranges with a token budget
 
 cchist stats  --by day|repo|model|session [--since 2026-06-01] [--local]
-cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage
+cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage (once per API call)
 cchist tools  [--since 2026-06-01] [--local]      # tool-call frequency
 cchist tools  --expand-skills                     # break Skill into Skill:<name>
 cchist bash   [--top 25] [--full]                 # most-used Bash commands
@@ -154,11 +154,32 @@ ranges (`m3`, `3`, `m3..m7`, `3..7`; default all), with `--tools` / `--thinking`
 / `--tool-results` to include those. Both budget output to ~6000 approx tokens by
 default — raise with `--budget <n>` or lift it with `--no-budget`.
 
+### `stats` / `tokens`
+
+Claude Code writes one API response as several lines (one per content block), each
+repeating the same usage. Usage is counted once per call, keyed by message id and
+request id. A resumed session copies earlier records into its own file; copied
+calls, prompts (by record uuid) and tool calls (by tool_use id) are counted once
+too, under the file that started first (then the least recently modified one). A
+copy of the whole history ties on its start, and the fallback can then credit the
+copy when the original kept running; totals are right either way. That is decided
+over every session before the filters run, so `--cwd` or
+`--exclude-*` never moves a copy's numbers.
+
+`--since` keeps the sessions active since the date and then counts only the events
+at or after it, so `stats --by day --since 2026-06-01` starts on that day. A bare
+date means local midnight (the same zone as the days). `--by day`
+puts each event on the local date it happened (set `TZ` to change the zone); its
+`sess` column counts the sessions active that day, so a session spanning midnight
+counts on both days. `sessions list` shows the output a session owns the same way
+(clipped to `--since` too);
+`--json` there keeps `usage` as the file's own total, copies included.
+
 ### Common flags
 
 - `--local` — only sessions whose `cwd` equals the current directory
 - `--cwd <path>` — only sessions with that `cwd`
-- `--since <date>` — only sessions active on/after the ISO date
+- `--since <date>` — only sessions active on/after the ISO date (a bare date is local midnight)
 - `--exclude-cwd <glob>` — drop sessions whose `cwd` matches the glob (repeatable)
 - `--exclude-entrypoint <val>` — drop sessions with that `entrypoint`, e.g. `sdk-cli` (repeatable)
 - `--json` — machine-readable output (otherwise a human table)
@@ -172,7 +193,7 @@ else is literal.
 # most recent session id for the repo you're standing in
 sid=$(cchist sessions latest --local)
 
-# how many tokens did I burn this month, by day?
+# how many tokens did I burn this month, by day? (local dates; set TZ to change them)
 cchist stats --by day --since 2026-06-01
 
 # which tools do I lean on?

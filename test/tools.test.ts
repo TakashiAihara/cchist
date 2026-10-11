@@ -23,6 +23,8 @@ function meta(over: Partial<SessionMeta>): SessionMeta {
     blocks: { text: 0, thinking: 0, toolUse: 0 },
     tools: {},
     skills: {},
+    events: { calls: [], turns: [], tools: [] },
+    mtimeMs: 0,
     ...over,
   };
 }
