@@ -1,7 +1,7 @@
 import { readRecords } from "../lib/records";
 import { resolveSessionFile } from "../lib/discover";
 import { invalidInput, notFound } from "../lib/errors";
-import { messagesFromRecords, approxTokens, type Msg } from "../lib/messages";
+import { messagesFromRecords, msgLabel, approxTokens, type Msg } from "../lib/messages";
 import { parseRange, inAnyRange, type Range } from "../lib/ranges";
 import { json, fmtTs } from "../lib/format";
 
@@ -17,7 +17,7 @@ type Opts = {
 /** Render one message to a string honoring the include flags. */
 function renderMsg(m: Msg, opts: Opts): string {
   const ts = m.ts ? ` ${fmtTs(m.ts, true)}` : "";
-  const head = `── m${m.index} ${m.role}${m.queued ? " (queued)" : ""}${ts} ──`;
+  const head = `── ${msgLabel(m)} ${m.role}${m.queued != null ? " (queued)" : ""}${ts} ──`;
   const parts: string[] = [head];
 
   if (m.isToolResult) {
@@ -57,14 +57,14 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
   if (opts.json) {
     return json(
       selected.map((m) => ({
-        index: `m${m.index}`,
+        index: msgLabel(m),
         role: m.role,
         ts: m.ts,
         text: m.text,
         ...(opts.thinking ? { thinking: m.thinking } : {}),
         ...(opts.tools ? { tools: m.tools } : {}),
         isToolResult: m.isToolResult,
-        queued: m.queued,
+        queued: m.queued != null,
       })),
     );
   }
