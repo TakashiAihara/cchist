@@ -85,12 +85,9 @@ export function parseSession(file: string): SessionMeta {
       // one response is written as one line per content block, each repeating its usage
       const key = rec.message.id && rec.requestId ? `${rec.message.id}:${rec.requestId}` : null;
       if (u) {
+        const { cacheCreate5m: _, prompt: __, ...counts } = tokenCounts(u);
         const usage = {
-          input: u.input_tokens || 0,
-          output: u.output_tokens || 0,
-          cacheRead: u.cache_read_input_tokens || 0,
-          cacheCreate: u.cache_creation_input_tokens || 0,
-          cacheCreate1h: u.cache_creation?.ephemeral_1h_input_tokens || 0,
+          ...counts,
           webSearch: u.server_tool_use?.web_search_requests || 0,
           webFetch: u.server_tool_use?.web_fetch_requests || 0,
         };
@@ -134,8 +131,9 @@ export function parseSession(file: string): SessionMeta {
     meta.durationMs = Date.parse(meta.lastTs) - Date.parse(meta.firstTs);
   }
   for (const c of meta.events.calls) {
-    // a streamed partial line can give the 1h split with 0 at the top level; after the
-    // lines of a call are merged, the 1h part cannot exceed the write it is part of
+    // a streamed partial line, and a fallback call (whose split is the refused
+    // attempt's), can give a 1h split with 0 at the top level; after the lines of a
+    // call are merged, the 1h part cannot exceed the write it is part of
     c.usage.cacheCreate1h = Math.min(c.usage.cacheCreate1h, c.usage.cacheCreate);
     addUsage(meta.usage, c.usage);
   }
@@ -148,4 +146,50 @@ function firstText(content: unknown): string {
   if (!Array.isArray(content)) return "";
   const b = content.find((x: any) => x?.type === "text" && typeof x.text === "string");
   return b ? b.text : "";
+}
+
+/**
+ * Token counts of one `message.usage`. A few records leave every top-level count at
+ * 0 and carry the real counts in `usage.iterations`; then the iterations are summed
+ * for the totals, and `prompt` is the largest single iteration's prompt (each
+ * iteration resends the context, so a sum would count it again). When the top level
+ * has counts it is used as is.
+ *
+ * shortcut: on a fallback call the top level is the attempt that was served, and the
+ * refused attempt before it (also billed) is only in `iterations`, so it is not
+ * counted (#65).
+ */
+export function tokenCounts(u: any): {
+  input: number;
+  output: number;
+  cacheRead: number;
+  cacheCreate: number;
+  cacheCreate5m: number;
+  cacheCreate1h: number;
+  prompt: number;
+} {
+  const one = (x: any) => {
+    const c = {
+      input: x?.input_tokens || 0,
+      output: x?.output_tokens || 0,
+      cacheRead: x?.cache_read_input_tokens || 0,
+      cacheCreate: x?.cache_creation_input_tokens || 0,
+      cacheCreate5m: x?.cache_creation?.ephemeral_5m_input_tokens || 0,
+      cacheCreate1h: x?.cache_creation?.ephemeral_1h_input_tokens || 0,
+      prompt: 0,
+    };
+    c.prompt = c.input + c.cacheRead + c.cacheCreate;
+    return c;
+  };
+  const top = one(u);
+  // the 5m / 1h split is left out: the zeroed records keep a split of the real write
+  if (top.prompt + top.output || !Array.isArray(u?.iterations)) return top;
+  const sum = one(null);
+  for (const it of u.iterations) {
+    const c = one(it);
+    for (const k of Object.keys(sum) as (keyof typeof sum)[]) {
+      sum[k] = k === "prompt" ? Math.max(sum[k], c[k]) : sum[k] + c[k];
+    }
+  }
+  return sum;
 }
