@@ -1,4 +1,5 @@
 import { iterFiltered, namedSession } from "../lib/records";
+import { invalidInput } from "../lib/errors";
 import { printBashCalls } from "./bash-calls";
 import { table, fmtNum, trunc, json, oneLine } from "../lib/format";
 import { intOption } from "../lib/options";
@@ -23,7 +24,11 @@ export function commandKey(cmd: string, full: boolean): string {
 export function bash(id: string | undefined, opts: Opts): void {
   if (opts.withResults) {
     // each call is already one JSON line; counting options would be silently ignored
-    const counting = [opts.json && "--json", opts.full && "--full", opts.top !== undefined && "--top"];
+    const counting = [
+      opts.json && "--json",
+      opts.full && "--full",
+      opts.top !== undefined && "--top",
+    ];
     const bad = counting.filter(Boolean);
     if (bad.length) throw invalidInput(`${bad.join(", ")} cannot be combined with --with-results`);
     return printBashCalls(id, opts);
