@@ -3,6 +3,7 @@ import { resolveSessionFile } from "../lib/discover";
 import { notFound } from "../lib/errors";
 import { messagesFromRecords, msgLabel, msgSummary, approxTokens, type Msg } from "../lib/messages";
 import { json, fmtTs } from "../lib/format";
+import { intOption } from "../lib/options";
 
 // commander maps --no-budget to budget === false; --budget <n> gives a string
 type Opts = { json?: boolean; budget?: string | boolean };
@@ -10,6 +11,11 @@ type Opts = { json?: boolean; budget?: string | boolean };
 const ROLE_MARK: Record<Msg["role"], string> = { user: "▶", assistant: "●" };
 
 export function outline(idOrLatest: string, opts: Opts): void {
+  // validated before the session is read, like the ranges
+  const budget =
+    opts.budget === false
+      ? Infinity
+      : intOption(typeof opts.budget === "string" ? opts.budget : undefined, "--budget", 6000);
   const file = resolveSessionFile(idOrLatest);
   if (!file) {
     throw notFound(`session not found: ${idOrLatest}`);
@@ -29,7 +35,6 @@ export function outline(idOrLatest: string, opts: Opts): void {
     );
   }
 
-  const budget = opts.budget === false ? Infinity : parseInt(String(opts.budget ?? "6000"), 10);
   let spent = 0;
   // count by position: a queued message shares its anchor's index
   for (const [k, m] of msgs.entries()) {

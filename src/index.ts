@@ -59,7 +59,7 @@ addExclude(
       "--since <date>",
       "only sessions active on/after this date (ISO; a bare date is local midnight)",
     )
-    .option("--limit <n>", "max rows", "20")
+    .option("--limit <n>", "max rows (default: 20)")
     .option(
       "--api-error",
       "only sessions whose last assistant turn is an API error (usage limit, prompt too long, ...), with its message",
@@ -145,7 +145,7 @@ addExclude(
       "[id]",
       "count one session: id (prefix ok), 'latest', or a path to a .jsonl (no filters with it)",
     )
-    .option("--top <n>", "max rows", "25")
+    .option("--top <n>", "max rows (default: 25)")
     .option(
       "--full",
       "group by the whole command instead of the leading word (the table shows it shortened)",
@@ -163,7 +163,7 @@ addExclude(
   program
     .command("files")
     .description("most-edited files (Edit/Write/MultiEdit/NotebookEdit)")
-    .option("--top <n>", "max rows", "30")
+    .option("--top <n>", "max rows (default: 30)")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
@@ -194,7 +194,7 @@ addExclude(
   program
     .command("commands")
     .description("slash-command / skill usage frequency (typed slash + Skill tool_use)")
-    .option("--top <n>", "max rows", "30")
+    .option("--top <n>", "max rows (default: 30)")
     .option(
       "--skills-only",
       "exclude built-in commands (clear/model/...), keep namespaced skills (slash only; --source tool is already skill-only)",
@@ -225,14 +225,14 @@ addExclude(
     .option("--case", "case-sensitive match")
     .option("--role <role>", "limit to: user|assistant|all", "all")
     .option("--thinking", "also search assistant thinking blocks")
-    .option("--context <n>", "excerpt context chars around the match", "60")
-    .option("--limit <n>", "max hits", "50")
+    .option("--context <n>", "excerpt context chars around the match (default: 60)")
+    .option("--limit <n>", "max hits (default: 50)")
     .option(
       "--session <id>",
       "search within one session (id prefix, 'latest', or a path to a .jsonl; no filters with it)",
     )
     .option("--group", "group hits by session")
-    .option("--hits-per <n>", "max excerpts per session in grouped output", "2")
+    .option("--hits-per <n>", "max excerpts per session in grouped output (default: 2)")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
     .option(
@@ -246,7 +246,7 @@ program
   .command("outline")
   .argument("<id>", "session id (prefix ok), 'latest', or a path to a .jsonl")
   .description("turn-by-turn structural map of a session")
-  .option("--budget <n>", "approx output token budget", "6000")
+  .option("--budget <n>", "approx output token budget (default: 6000)")
   .option("--no-budget", "disable output budgeting")
   .option("--json", "machine-readable output")
   .action(outline);
@@ -259,7 +259,7 @@ program
     "message ranges: m3, 3, m3..m7, 3..7, or m3.q1 for a queued message (default: all)",
   )
   .description("read transcript message ranges with a token budget")
-  .option("--budget <n>", "approx output token budget", "6000")
+  .option("--budget <n>", "approx output token budget (default: 6000)")
   .option("--no-budget", "disable output budgeting")
   .option("--tools", "include tool calls")
   .option("--tool-results", "include tool results")

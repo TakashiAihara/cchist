@@ -1,5 +1,6 @@
 import { iterFiltered, namedSession } from "../lib/records";
 import { table, fmtNum, trunc, json, oneLine } from "../lib/format";
+import { intOption } from "../lib/options";
 import { type CommonFilter } from "../lib/types";
 
 type Opts = CommonFilter & { json?: boolean; top?: string; full?: boolean };
@@ -19,6 +20,7 @@ export function commandKey(cmd: string, full: boolean): string {
 }
 
 export function bash(id: string | undefined, opts: Opts): void {
+  const top = intOption(opts.top, "--top", 25);
   const counts = new Map<string, number>();
   for (const { recs } of sources(id, opts)) {
     for (const r of recs) {
@@ -33,7 +35,6 @@ export function bash(id: string | undefined, opts: Opts): void {
     }
   }
 
-  const top = opts.top ? parseInt(opts.top, 10) : 25;
   const rows = [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, top);
   if (opts.json) return json(Object.fromEntries(rows));
 
