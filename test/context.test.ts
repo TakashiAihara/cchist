@@ -106,6 +106,10 @@ describe("contextReport", () => {
     expect(contextReport([end, boundary]).turns.length).toBe(1);
     expect(contextReport([end, att("x", "")]).turns.length).toBe(1);
     expect(contextReport([end, L({ type: "ai-title" })]).turns.length).toBe(0);
+    // a prompt still waiting for its reply is the row to look at
+    expect(contextReport([end, L({ type: "user", message: { content: "x" } })]).turns.length).toBe(
+      1,
+    );
   });
 
   test("a closed turn with nothing sent in it stays", () => {
@@ -179,10 +183,14 @@ describe("cchist context (CLI)", () => {
     expect(row(out, "2")).toContain("+11.8k");
     expect(row(out, "2")).toContain("9.1k");
     expect(row(out, "2")).toContain("14/4.0k");
-    const third = row(out, "3");
-    expect(third).toContain("-12.1k");
-    expect(third).toContain("auto 13.0k→900, manual 950→400");
-    expect(third).toContain("c 26, b 24");
+    expect(row(out, "3").slice(4)).toEqual([
+      "901",
+      "-12.1k",
+      "800",
+      "7/93",
+      "auto 13.0k→900, manual 950→400",
+      "c 26, b 24",
+    ]);
   });
 
   test("the session table lists every attachment type, largest first", () => {

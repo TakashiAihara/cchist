@@ -34,8 +34,8 @@ export type ContextReport = {
  * Split a session into turns (a `system` / `turn_duration` record ends one) and
  * measure each: the context size of its API calls and the attachments injected
  * in it. A turn's size is its largest call, so a jump shows on the turn that
- * caused it. An attachment's size is the length of its whole JSON record (keys
- * included) as JavaScript writes it, in UTF-16 units, not tokens. session-truncate
+ * caused it. An attachment's size is the length of its `attachment` object as JSON
+ * (keys included) as JavaScript writes it, in UTF-16 units, not tokens. session-truncate
  * measures with Python's json.dumps, which escapes non-ASCII as \uXXXX: 6
  * characters for each Japanese one, about 3.4 times this count on real
  * instructions / nested_memory attachments.
@@ -50,6 +50,7 @@ export function contextReport(lines: string[]): ContextReport {
   let cur: Turn | null = null;
   // one response is written as one line per content block, each repeating its usage
   const calls = new Map<string, { t: Turn; read: number; write5m: number; write1h: number }>();
+  const prompted = new Set<Turn>();
   const open = (line: number, ts: string | null): Turn => {
     cur = {
       turn: turns.length + 1,
@@ -80,6 +81,7 @@ export function contextReport(lines: string[]): ContextReport {
     }
     const t: Turn = cur ?? open(i + 1, r.timestamp ?? null);
     if (!t.ts && r.timestamp) t.ts = r.timestamp;
+    if (r.type === "user") prompted.add(t);
     if (r.type === "system" && r.subtype === "compact_boundary" && r.compactMetadata) {
       const m = r.compactMetadata;
       t.compacts.push({ trigger: m.trigger, preTokens: m.preTokens, postTokens: m.postTokens });
@@ -116,12 +118,13 @@ export function contextReport(lines: string[]): ContextReport {
     c.t.cache.write1h += c.write1h;
   }
 
-  // metadata written after the last turn_duration (title, mode, …) is not a turn;
-  // a closed turn is, even when nothing was sent in it
+  // metadata written after the last turn_duration (title, mode, …) is not a turn; a
+  // closed turn is, and so is an open one with a prompt (unanswered, or answered only
+  // by an API error)
   const last = turns.at(-1);
   const empty =
     last && !last.context && !last.compacts.length && !Object.keys(last.attachments).length;
-  if (empty && last.end === null) turns.pop();
+  if (empty && last.end === null && !prompted.has(last)) turns.pop();
 
   const attachments = [...totals.entries()]
     .map(([type, v]) => ({ type, ...v }))
