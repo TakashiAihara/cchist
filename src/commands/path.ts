@@ -1,5 +1,4 @@
-import { basename } from "node:path";
-import { listSessionFiles } from "../lib/discover";
+import { resolveSessionFile } from "../lib/discover";
 import { notFound } from "../lib/errors";
 import { parseSession } from "../lib/parse";
 import { json } from "../lib/format";
@@ -14,17 +13,7 @@ type PathOpts = { json?: boolean };
  * recorded inside the JSONL on every content record, so we read it from there.
  */
 export function path(idOrLatest: string, opts: PathOpts): void {
-  const files = listSessionFiles();
-  let file: string | null = null;
-  if (idOrLatest === "latest") file = files[0]?.file ?? null;
-  else {
-    for (const f of files) {
-      if (basename(f.file, ".jsonl").startsWith(idOrLatest)) {
-        file = f.file;
-        break;
-      }
-    }
-  }
+  const file = resolveSessionFile(idOrLatest);
   if (!file) {
     throw notFound(`session not found: ${idOrLatest}`);
   }

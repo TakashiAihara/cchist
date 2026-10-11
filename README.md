@@ -173,7 +173,11 @@ cchist tools
 ## Config
 
 - `CCHIST_PROJECTS_DIR` / `CLAUDE_PROJECTS_DIR` override the projects directory
-  (defaults to `~/.claude/projects`).
+  (defaults to `~/.claude/projects`). Without an override, `$CLAUDE_CONFIG_DIR/projects`
+  is searched before `~/.claude/projects` when `CLAUDE_CONFIG_DIR` is set; a session
+  found in both is taken from `$CLAUDE_CONFIG_DIR`.
+- Commands that take a session id also accept a path to a `.jsonl` transcript, so a
+  file copied from another host can be read where it sits.
 - `CCHIST_CONFIG` overrides the config file path (defaults to
   `$XDG_CONFIG_HOME/cchist/config.json`, i.e. `~/.config/cchist/config.json`).
 
