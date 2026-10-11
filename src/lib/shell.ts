@@ -127,6 +127,8 @@ export function commandNames(cmd: string, depth = 0): string[] {
       // `a|b)`: another alternative of the same pattern
     } else {
       finish();
+      // a redirect with nothing after it (invalid shell) must not eat the next command
+      target = false;
       // `;;` and `;&` end a case item, so a pattern comes next (after `;&` too: it
       // runs the next body, but `pat)` is still written); a `)` reaching here closed
       // the pattern of `case x in a)` written on one line, so the body is commands
