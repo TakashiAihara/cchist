@@ -79,7 +79,7 @@ cchist bash   [--top 25] [--full]                 # most-used Bash commands
 cchist bash   <id|latest> [--top 25] [--full]     # one session's Bash commands
 cchist bash   --full --json                       # keys are whole commands; the table shows 60 chars
 cchist files  [--top 30]                          # most-edited files
-cchist activity [--idle-gap 15]                    # active time (idle gaps left out) + hour histogram
+cchist activity [--idle-gap 15]                    # active time (summed and wall clock) + hour histogram
 cchist commands [--top 30] [--skills-only] [--source slash|tool|all]   # slash + Skill tool usage
 
 cchist search <query>                              # full-text search across prompts & messages
@@ -179,6 +179,15 @@ puts each event on the local date it happened (set `TZ` to change the zone); its
 counts on both days. `sessions list` shows the output a session owns the same way
 (clipped to `--since` too);
 `--json` there keeps `usage` as the file's own total, copies included.
+
+### `activity`
+
+Active time counts only stretches of user / assistant messages (and prompts typed
+mid-turn) with no gap of `--idle-gap` minutes (default 15) or more. Bookkeeping
+records, ccx heartbeat prompts and their `.` replies are left out, so an idle
+session that is merely kept alive adds nothing. It is reported summed over sessions
+and as wall-clock time (overlapping sessions counted once). `--since` drops the
+records before it. The hour histogram counts the records inside active stretches.
 
 ### Common flags
 
