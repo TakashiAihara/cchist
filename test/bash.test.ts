@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { commandKey, firstWord } from "../src/commands/bash";
@@ -129,5 +129,106 @@ describe("bash --full --json (CLI)", () => {
     expect(JSON.parse(stdout)).toEqual({
       "bun test test/bash.test.ts test/format.test.ts test/search.test.ts && echo all green\necho second line": 1,
     });
+  });
+});
+
+describe("bash <id>", () => {
+  let root: string;
+
+  const session = (cmds: string[]) =>
+    JSON.stringify({
+      type: "assistant",
+      timestamp: "2026-06-01T00:00:00Z",
+      cwd: "/repo/b",
+      message: {
+        content: cmds.map((command) => ({ type: "tool_use", name: "Bash", input: { command } })),
+      },
+    }) + "\n";
+
+  async function cli(args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+    const proc = Bun.spawn(["bun", "run", "src/index.ts", ...args], {
+      cwd: join(import.meta.dir, ".."),
+      env: { ...process.env, CCHIST_PROJECTS_DIR: root, CCHIST_CONFIG: join(root, "none.json") },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
+    return { code: await proc.exited, stdout, stderr };
+  }
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), "cchist-bash-id-"));
+    mkdirSync(join(root, "-repo-b"));
+    writeFileSync(
+      join(root, "-repo-b", "aaaa-1.jsonl"),
+      session(["ls -la", "git status", "git log"]),
+    );
+    writeFileSync(join(root, "-repo-b", "bbbb-2.jsonl"), session(["npm test"]));
+    // latest is the newest mtime, so pin it rather than trusting write order
+    utimesSync(join(root, "-repo-b", "aaaa-1.jsonl"), 1_780_000_000, 1_780_000_000);
+    utimesSync(join(root, "-repo-b", "bbbb-2.jsonl"), 1_780_100_000, 1_780_100_000);
+  });
+
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test("counts only the named session", async () => {
+    const r = await cli(["bash", "aaaa", "--json"]);
+    expect(r.code).toBe(0);
+    expect(JSON.parse(r.stdout)).toEqual({ git: 2, ls: 1 });
+  });
+
+  test("without an id every session is counted", async () => {
+    const r = await cli(["bash", "--json"]);
+    expect(JSON.parse(r.stdout)).toEqual({ git: 2, ls: 1, npm: 1 });
+  });
+
+  test("--full keys a single session by whole commands", async () => {
+    const r = await cli(["bash", "aaaa", "--full", "--json"]);
+    expect(JSON.parse(r.stdout)).toEqual({ "ls -la": 1, "git status": 1, "git log": 1 });
+  });
+
+  test("an unknown id exits 2", async () => {
+    const r = await cli(["bash", "nope-id"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain("cchist: session not found");
+    expect(r.stdout).toBe("");
+  });
+
+  for (const flags of [
+    ["--since", "2026-01-01"],
+    ["--local"],
+    ["--cwd", "/repo/b"],
+    ["--exclude-cwd", "/x"],
+    ["--exclude-entrypoint", "cli"],
+  ]) {
+    test(`${flags[0]} with an id exits 3 instead of being ignored`, async () => {
+      const r = await cli(["bash", "aaaa", ...flags]);
+      expect(r.code).toBe(3);
+      expect(r.stderr).toContain(`cchist: ${flags[0]} cannot be combined with a session id`);
+      expect(r.stdout).toBe("");
+    });
+  }
+
+  test("an empty id exits 3 instead of counting every session", async () => {
+    const r = await cli(["bash", "", "--json"]);
+    expect(r.code).toBe(3);
+    expect(r.stdout).toBe("");
+  });
+
+  test("a .jsonl path and latest name a session too", async () => {
+    const byPath = await cli(["bash", join(root, "-repo-b", "bbbb-2.jsonl"), "--json"]);
+    expect(JSON.parse(byPath.stdout)).toEqual({ npm: 1 });
+    expect(JSON.parse((await cli(["bash", "latest", "--json"])).stdout)).toEqual({ npm: 1 });
+  });
+
+  test("search --session with an empty id exits 3 instead of searching everything", async () => {
+    const r = await cli(["search", "git", "--session", ""]);
+    expect(r.code).toBe(3);
+    expect(r.stdout).toBe("");
   });
 });

@@ -1,4 +1,4 @@
-import { iterFiltered } from "../lib/records";
+import { iterFiltered, namedSession } from "../lib/records";
 import { table, fmtNum, trunc, json } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
@@ -18,9 +18,9 @@ export function commandKey(cmd: string, full: boolean): string {
   return full ? cmd.trim() : firstWord(cmd);
 }
 
-export function bash(opts: Opts): void {
+export function bash(id: string | undefined, opts: Opts): void {
   const counts = new Map<string, number>();
-  for (const { recs } of iterFiltered(opts)) {
+  for (const { recs } of sources(id, opts)) {
     for (const r of recs) {
       if (r.type !== "assistant" || !Array.isArray(r.message?.content)) continue;
       for (const b of r.message.content) {
@@ -49,4 +49,8 @@ export function bash(opts: Opts): void {
       ]),
     ),
   );
+}
+
+function sources(id: string | undefined, opts: Opts): Iterable<{ recs: any[] }> {
+  return id === undefined ? iterFiltered(opts) : [namedSession(id, opts)];
 }
