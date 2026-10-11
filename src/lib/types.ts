@@ -3,6 +3,8 @@ export type Usage = {
   output: number;
   cacheRead: number;
   cacheCreate: number;
+  // the part of cacheCreate written to the 1-hour cache (priced above the 5-minute one)
+  cacheCreate1h: number;
   webSearch: number;
   webFetch: number;
 };
@@ -14,7 +16,12 @@ export type Usage = {
 export type Event = { key: string | null; ts: string | null };
 
 /** One API call: one response's usage, which Claude Code may split across several lines. */
-export type Call = Event & { usage: Usage };
+export type Call = Event & {
+  model: string | null;
+  // "fast" (fast mode) or "us" (US-only inference): billed above the list price
+  surcharge: string | null;
+  usage: Usage;
+};
 
 export type SessionEvents = {
   // keyed by `${message.id}:${requestId}`
@@ -76,7 +83,15 @@ export type CommonFilter = {
 };
 
 export function emptyUsage(): Usage {
-  return { input: 0, output: 0, cacheRead: 0, cacheCreate: 0, webSearch: 0, webFetch: 0 };
+  return {
+    input: 0,
+    output: 0,
+    cacheRead: 0,
+    cacheCreate: 0,
+    cacheCreate1h: 0,
+    webSearch: 0,
+    webFetch: 0,
+  };
 }
 
 export function addUsage(into: Usage, from: Usage): Usage {
@@ -84,6 +99,7 @@ export function addUsage(into: Usage, from: Usage): Usage {
   into.output += from.output;
   into.cacheRead += from.cacheRead;
   into.cacheCreate += from.cacheCreate;
+  into.cacheCreate1h += from.cacheCreate1h;
   into.webSearch += from.webSearch;
   into.webFetch += from.webFetch;
   return into;
@@ -98,6 +114,7 @@ export function maxUsage(into: Usage, from: Usage): Usage {
   into.output = Math.max(into.output, from.output);
   into.cacheRead = Math.max(into.cacheRead, from.cacheRead);
   into.cacheCreate = Math.max(into.cacheCreate, from.cacheCreate);
+  into.cacheCreate1h = Math.max(into.cacheCreate1h, from.cacheCreate1h);
   into.webSearch = Math.max(into.webSearch, from.webSearch);
   into.webFetch = Math.max(into.webFetch, from.webFetch);
   return into;

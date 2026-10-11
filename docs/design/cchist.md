@@ -29,7 +29,7 @@ session_id はファイル名で確定するため、集計は 1 ファイル 1 
 
 `id / file / cwd / gitBranch / version / entrypoint / title / lastPrompt /
 firstTs / lastTs / durationMs / records / userTurns / assistantMsgs /
-models[] / usage{input,output,cacheRead,cacheCreate,webSearch,webFetch} /
+models[] / usage{input,output,cacheRead,cacheCreate,cacheCreate1h,webSearch,webFetch} /
 blocks{text,thinking,toolUse} / tools{name:count} / skills{name:count}`
 
 `skills` は `Skill` tool の `input.skill` を per-skill にカウントしたもの。
@@ -44,8 +44,8 @@ cchist show <id|latest> [--tools] [--thinking] [--json]
 cchist path <id|latest> [--json]                      # session id -> 実 cwd 逆引き
 cchist outline <id|latest> [--budget N|--no-budget] [--json]   # turn-by-turn 構造マップ
 cchist read <id|latest> [m3..m7 ...] [--tools] [--thinking] [--tool-results] [--budget N|--no-budget] [--json]
-cchist stats  [--by session|day|repo|model] [--since D] [--local] [--json]
-cchist tokens [--since D] [--local] [--json]
+cchist stats  [--by session|day|repo|model] [--since D] [--local] [--cost] [--json]
+cchist tokens [--since D] [--local] [--cost] [--json]
 cchist tools  [--expand-skills] [--since D] [--local] [--json]
 cchist bash   [--top N] [--full] [--since D] [--local] [--json]   # Bash コマンド頻度 (先頭語。--full はコマンド全体)
 cchist files  [--top N] [--since D] [--local] [--json]            # 編集ファイルランキング
@@ -214,7 +214,5 @@ package.json と同じ値が出る。`.version("...")` ハードコードと pac
 
 ## 未実装 (phase 2)
 
-- cost 算出: model 別単価テーブルが必要。単価は変動するため claude-api skill で確定値を取ってから実装する
-  (training data の記憶で単価を埋めない)。`tokens --cost` として追加予定。
 - semantic (vector) 検索: 設計を [`semantic-search.md`](semantic-search.md) に分離。オフライン完結を
   最優先する方針で、lexical な `cchist search` (実装済み) の `--semantic` 拡張として計画。着手は未定。

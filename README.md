@@ -72,8 +72,8 @@ cchist outline <id|latest>             # turn-by-turn structural map of a sessio
 cchist read <id|latest> [m3..m7 ...]   # read message ranges with a token budget
 cchist context <id|latest> [--window <tokens>]  # per-turn context size + attachments injected
 
-cchist stats  --by day|repo|model|session [--since 2026-06-01] [--local]
-cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage (once per API call)
+cchist stats  --by day|repo|model|session [--since 2026-06-01] [--local] [--cost]
+cchist tokens [--since 2026-06-01] [--local] [--cost]  # grand-total token usage (once per API call)
 cchist tools  [--since 2026-06-01] [--local]      # tool-call frequency
 cchist tools  --expand-skills                     # break Skill into Skill:<name>
 cchist bash   [--top 25] [--full]                 # most-used Bash commands
@@ -353,8 +353,20 @@ is set), `bun install` still succeeds and prints why no hook was installed
 ## Design
 
 See [`docs/design/cchist.md`](docs/design/cchist.md) for the data model, command
-surface, and the alternatives that were considered. Cost estimation is a planned
-phase-2 feature (needs a verified per-model pricing table).
+surface, and the alternatives that were considered.
+
+`tokens --cost` adds a per-model table (calls, input, output, cache read, 5m and 1h
+cache writes, USD) and `stats --cost` a USD column, at the list API prices in
+[`src/lib/pricing.ts`](src/lib/pricing.ts) (copied from the Claude pricing page on
+2026-10-11), with Claude Haiku 5.5's higher rate for prompts over 100k tokens. These
+are list prices: a subscription does not bill per token, and Bedrock / Vertex ids
+are not in the table because those providers set their own prices. A call that
+cannot be priced shows `?` and is named under the table, and the total is then
+shown as a lower bound by `tokens` (`≥ $…`; `cost.usd` is null in `--json`,
+`cost.pricedUsd` sums the models with no such call) and as `?` by `stats`: a model
+missing from the table, and fast-mode or US-only calls,
+which are billed above the list price. Web search / fetch fees and the refused
+first iteration of a fallback call are not priced.
 
 ## Release (maintainer)
 
