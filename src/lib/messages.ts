@@ -8,6 +8,8 @@ export type Msg = {
   thinking: string[];
   tools: { name: string; input: unknown }[];
   isToolResult: boolean;
+  // a tool result the tool reported as failed (`is_error`), so a cut cannot hide the failure
+  isError: boolean;
   // set on a message the user typed mid-turn (never stored as a `type: "user"`
   // record): it is addressed `m<index>.q<queued>`, after regular message `index`
   queued: number | null;
@@ -74,6 +76,7 @@ export function messagesFromRecords(recs: any[]): Msg[] {
         thinking: [],
         tools: [],
         isToolResult: false,
+        isError: false,
         queued: ++q,
       });
       return;
@@ -91,6 +94,7 @@ export function messagesFromRecords(recs: any[]): Msg[] {
         thinking: [],
         tools: [],
         isToolResult,
+        isError: isToolResult && c.some((b: any) => b?.is_error === true),
         queued: null,
       });
     } else if (r.type === "assistant" && r.message) {
@@ -111,6 +115,7 @@ export function messagesFromRecords(recs: any[]): Msg[] {
           .filter((b: any) => b?.type === "tool_use")
           .map((b: any) => ({ name: b.name ?? "?", input: b.input })),
         isToolResult: false,
+        isError: false,
         queued: null,
       });
     }

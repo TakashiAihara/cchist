@@ -255,6 +255,10 @@ program
   .option("--no-budget", "disable output budgeting")
   .option("--tools", "include tool calls")
   .option("--tool-results", "include tool results")
+  .option(
+    "--truncate <n>",
+    "cut each tool result and tool input to n chars, noting how many were dropped",
+  )
   .option("--thinking", "include thinking blocks")
   .option("--json", "machine-readable output")
   .action(read);
