@@ -19,6 +19,21 @@ export function fmtDuration(ms: number): string {
   return `${ss}s`;
 }
 
+/**
+ * A record timestamp as `YYYY-MM-DD HH:MMZ` (UTC, minutes; seconds with `seconds`).
+ * The Z keeps the zone visible next to logs and shell history in other zones.
+ */
+export function fmtTs(ts: string | null | undefined, seconds = false): string {
+  const d = ts ? new Date(ts) : null;
+  if (!d || Number.isNaN(d.getTime())) return "-";
+  return (
+    d
+      .toISOString()
+      .replace("T", " ")
+      .slice(0, seconds ? 19 : 16) + "Z"
+  );
+}
+
 /** Truncate a string to n code points with an ellipsis from the left or right. */
 export function trunc(s: string, n: number, from: "left" | "right" = "right"): string {
   // a code point is at least one UTF-16 unit, so a string that short cannot exceed n

@@ -3,7 +3,7 @@ import { resolveSessionFile } from "../lib/discover";
 import { invalidInput, notFound } from "../lib/errors";
 import { messagesFromRecords, approxTokens, type Msg } from "../lib/messages";
 import { parseRange, inAnyRange, type Range } from "../lib/ranges";
-import { json } from "../lib/format";
+import { json, fmtTs } from "../lib/format";
 
 type Opts = {
   json?: boolean;
@@ -16,7 +16,7 @@ type Opts = {
 
 /** Render one message to a string honoring the include flags. */
 function renderMsg(m: Msg, opts: Opts): string {
-  const ts = m.ts ? ` ${m.ts.replace("T", " ").slice(0, 19)}` : "";
+  const ts = m.ts ? ` ${fmtTs(m.ts, true)}` : "";
   const head = `── m${m.index} ${m.role}${ts} ──`;
   const parts: string[] = [head];
 

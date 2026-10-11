@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { fmtNum, fmtK, fmtDuration, trunc, table } from "../src/lib/format";
+import { fmtNum, fmtK, fmtDuration, fmtTs, trunc, table } from "../src/lib/format";
 
 describe("fmtNum", () => {
   test("groups thousands", () => {
@@ -78,5 +78,24 @@ describe("table", () => {
     expect(lines[1]).toBe("----  --"); // 2nd col width is 2 ("22")
     expect(lines[2]).toBe("a     1");
     expect(lines[3]).toBe("bbb   22");
+  });
+});
+
+describe("fmtTs", () => {
+  test("renders UTC to the minute with a Z", () => {
+    expect(fmtTs("2026-10-01T03:25:59.123Z")).toBe("2026-10-01 03:25Z");
+  });
+
+  test("normalizes an offset timestamp to UTC", () => {
+    expect(fmtTs("2026-10-01T12:25:00+09:00")).toBe("2026-10-01 03:25Z");
+  });
+
+  test("includes seconds when asked", () => {
+    expect(fmtTs("2026-10-01T03:25:59.123Z", true)).toBe("2026-10-01 03:25:59Z");
+  });
+
+  test("absent or invalid timestamps render as -", () => {
+    expect(fmtTs(null)).toBe("-");
+    expect(fmtTs("nope")).toBe("-");
   });
 });
