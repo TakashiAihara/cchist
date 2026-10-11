@@ -1,5 +1,5 @@
 import { iterFiltered, namedSession } from "../lib/records";
-import { table, fmtNum, trunc, json } from "../lib/format";
+import { table, fmtNum, trunc, json, oneLine } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
 type Opts = CommonFilter & { json?: boolean; top?: string; full?: boolean };
@@ -42,8 +42,8 @@ export function bash(id: string | undefined, opts: Opts): void {
     table(
       ["command", "count", "share"],
       rows.map(([k, c]) => [
-        // a row is one line, so a multi-line key shows "⏎" where it breaks; --json keeps the newlines
-        trunc(k.replaceAll("\n", "⏎"), 60),
+        // the table shows control characters as symbols; --json keeps the command as recorded
+        trunc(oneLine(k), 60),
         fmtNum(c),
         total ? ((c / total) * 100).toFixed(1) + "%" : "-",
       ]),

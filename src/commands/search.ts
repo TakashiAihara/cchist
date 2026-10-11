@@ -1,6 +1,6 @@
 import { basename } from "node:path";
 import { iterFiltered, namedSession } from "../lib/records";
-import { notFound } from "../lib/errors";
+import { invalidInput, notFound } from "../lib/errors";
 import { table, trunc, json, fmtTs } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
@@ -118,7 +118,10 @@ export function groupBySession(hits: SearchHit[]): SessionGroup[] {
 export function search(query: string, opts: Opts): void {
   const match = makeMatcher(query, opts);
   const role = opts.role ?? "all";
-  const ctx = opts.context ? parseInt(opts.context, 10) : 60;
+  if (opts.context !== undefined && !/^\d+$/.test(opts.context)) {
+    throw invalidInput(`invalid --context: ${opts.context} (use a non-negative integer)`);
+  }
+  const ctx = opts.context ? Number(opts.context) : 60;
   const limit = opts.limit ? parseInt(opts.limit, 10) : 50;
 
   // scope: one session (--session) or every session passing the filters

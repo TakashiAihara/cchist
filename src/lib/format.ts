@@ -58,6 +58,18 @@ export function clipValues(v: unknown, n: number | null): unknown {
   return v;
 }
 
+/**
+ * `s` on one table row: line breaks become ⏎, tabs ⇥, and other control
+ * characters (escape sequences included) �, so a cell can neither break the row
+ * nor drive the terminal.
+ */
+export function oneLine(s: string): string {
+  return Array.from(s.replace(/\r\n|\r|\n/g, "⏎").replaceAll("\t", "⇥"), (ch) => {
+    const c = ch.codePointAt(0)!;
+    return c < 0x20 || c === 0x7f ? "�" : ch;
+  }).join("");
+}
+
 /** Truncate a string to n code points with an ellipsis from the left or right. */
 export function trunc(s: string, n: number, from: "left" | "right" = "right"): string {
   // a code point is at least one UTF-16 unit, so a string that short cannot exceed n
