@@ -56,6 +56,8 @@ describe("commandNames", () => {
     ["[[ $x =~ ^(a|b)$ ]] && ok", ["[[", "ok"]],
     ["[[ $x == a|b ]] && ok", ["[[", "ok"]],
     ["echo ( && make", ["echo", "make"]],
+    ['echo ${X:-"$(git rev-parse HEAD)"}', ["git", "echo"]],
+    ["echo [[ | grep x", ["echo", "grep"]],
     ["echo $(( $(wc -l < f) + 1 ))", ["wc", "echo"]],
     ["(( $(nproc) > 2 )) && go", ["nproc", "go"]],
     ["x=$((1<<2)); echo ok", ["echo"]],

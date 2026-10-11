@@ -45,6 +45,7 @@ export function commandNames(cmd: string, depth = 0): string[] {
 
   // inside an unclosed [[ ]], wherever it starts (`if [[ a && b ]]`)
   let inTest = false;
+  let unclosed = false;
   const sub = (t: { subs: string[] }) => {
     if (depth < MAX_DEPTH)
       for (const s of t.subs) for (const n of commandNames(s, depth + 1)) names.push(n);
@@ -83,7 +84,8 @@ export function commandNames(cmd: string, depth = 0): string[] {
     const t = toks[k]!;
     if (t.kind === "word") {
       sub(t);
-      if (t.text === "[[") inTest = true;
+      // `[[` opens a test only where a command starts (`echo [[` is an argument)
+      if (t.text === "[[" && words.every((w) => RESERVED.has(w))) inTest = true;
       else if (t.text === "]]") inTest = false;
       if (target) target = false;
       else words.push(t.text);
@@ -107,7 +109,8 @@ export function commandNames(cmd: string, depth = 0): string[] {
       // `xs=(a b)` is an array and `*.zip(N)` a zsh glob qualifier: no command runs,
       // though a $( ) inside `xs=($(git ls-files))` does
       let end = k;
-      for (let open = 1; open && end + 1 < toks.length; ) {
+      // an unclosed `(` was seen before: the rest has no `)` either, so do not rescan
+      for (let open = unclosed ? 0 : 1; open && end + 1 < toks.length; ) {
         const u = toks[++end]!;
         if (u.text === "(") open++;
         else if (u.text === ")" && --open === 0) {
@@ -116,6 +119,7 @@ export function commandNames(cmd: string, depth = 0): string[] {
         }
       }
       // an unclosed `(` hides nothing: the tokens after it are read as usual
+      if (end === toks.length - 1 && k !== end) unclosed = true;
     } else if (t.text === ")" && pattern) {
       words = [];
       pattern = false;
@@ -124,8 +128,8 @@ export function commandNames(cmd: string, depth = 0): string[] {
     } else {
       finish();
       // `;;` and `;&` end a case item, so a pattern comes next (after `;&` too: it
-      // runs the next body, but `pat)` is still written); a `)` that ended the
-      // segment (`case x in a)` on one line) has closed the pattern already
+      // runs the next body, but `pat)` is still written); a `)` reaching here closed
+      // the pattern of `case x in a)` written on one line, so the body is commands
       if (t.text === ";;" || t.text === ";&") pattern = true;
       else if (t.text === ")") pattern = false;
     }
@@ -262,8 +266,16 @@ function readWord(s: string, i: number): { text: string; subs: string[]; end: nu
           const e = s.indexOf("'", i + 1);
           i = e < 0 ? s.length : e + 1;
         } else if (c === '"') {
-          // a quoted `}` inside the default (`${x:-"}"}`) does not close it
-          for (i++; i < s.length && s[i] !== '"'; i++) if (s[i] === "\\") i++;
+          // a quoted `}` inside the default (`${x:-"}"}`) does not close it, and a
+          // $( ) in the quotes still runs
+          for (i++; i < s.length && s[i] !== '"'; i++) {
+            if (s[i] === "\\") i++;
+            else if (s.startsWith("$(", i)) {
+              const e = balanced(s, i + 1, s[i + 2] === "(");
+              if (s[i + 2] !== "(") subs.push(s.slice(i + 2, e));
+              i = e;
+            }
+          }
           i++;
         } else if (c === "$" && s[i + 1] === "(") {
           const e = balanced(s, i + 1, s[i + 2] === "(");
