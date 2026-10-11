@@ -96,12 +96,21 @@ function isDir(p: string): boolean {
   }
 }
 
+// how much older than its last record a file's mtime may look (a clock set back, a
+// copy from a host whose clock is behind) and still be read
+const MTIME_SLACK_MS = 24 * 3600 * 1000;
+
 /**
  * Session files, newest first, that can hold a record at or after `sinceT`. A file
- * is written after its records, so its last record is no newer than its mtime (0
- * of 471 real files broke this); an older file cannot match and is not read.
+ * is written after its records, so its last record is no newer than its mtime (in
+ * 471 real files the largest excess was under 1 ms); a file more than a day older
+ * than `sinceT` cannot match and is not read.
+ *
+ * shortcut: `loadAll` (sessions list / stats / tokens / tools / commands) still reads
+ * every file, since a copied call is credited by comparing all sessions; skip there
+ * too if that becomes the slow path.
  */
 export function filesSince(sinceT: number | null): FileEntry[] {
   const files = listSessionFiles();
-  return sinceT == null ? files : files.filter((f) => f.mtimeMs >= sinceT);
+  return sinceT == null ? files : files.filter((f) => f.mtimeMs >= sinceT - MTIME_SLACK_MS);
 }

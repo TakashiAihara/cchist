@@ -5,15 +5,16 @@ import { invalidInput } from "./errors";
 import { isExcluded } from "./exclude";
 import { type SessionMeta, type CommonFilter } from "./types";
 
-/**
- * Epoch ms for a `--since` value, or null when unset; throws on an unparseable date.
- * A bare date is local midnight, matching the local days of `stats --by day` and the
- * local times printed elsewhere; anything with a time is read by Date.parse.
- */
 // a date, optionally with a time (T or a space) and a zone; no zone means local time
 const ISO =
-  /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?$/;
+  /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2})(\.\d+)?)?(Z|[+-](?:[01]\d|2[0-3]):?[0-5]\d)?)?$/i;
 
+/**
+ * Epoch ms for a `--since` value, or null when unset; throws on anything but an ISO
+ * date or date-time. A bare date is local midnight, matching the local days of
+ * `stats --by day` and the local times printed elsewhere; a date-time is local time
+ * unless it carries Z or an offset.
+ */
 export function parseSince(since: string | undefined): number | null {
   if (since === undefined) return null;
   const m = ISO.exec(since);
@@ -23,20 +24,18 @@ export function parseSince(since: string | undefined): number | null {
     );
   if (!m) throw bad();
   const [y, mo, d, h = 0, mi = 0, s = 0] = m.slice(1, 7).map((x) => (x ? Number(x) : undefined));
+  const pad = (n: number, w = 2) => String(n).padStart(w, "0");
+  const fields = `${pad(y!, 4)}-${pad(mo!)}-${pad(d!)}T${pad(h)}:${pad(mi)}:${pad(s)}`;
   // a rolled-over field (02-30 → March 2, 25:00 → the next day) is a typo, not a
-  // time; checked in UTC so a local DST gap does not reject a valid zoned time
-  const v = new Date(Date.UTC(y!, mo! - 1, d!, h, mi, s));
-  const real =
-    v.getUTCFullYear() === y &&
-    v.getUTCMonth() === mo! - 1 &&
-    v.getUTCDate() === d &&
-    v.getUTCHours() === h &&
-    v.getUTCMinutes() === mi &&
-    v.getUTCSeconds() === s;
-  if (!real) throw bad();
-  const local = new Date(y!, mo! - 1, d!, h, mi, s, m[7] ? Math.round(Number(m[7]) * 1000) : 0);
-  // with an explicit zone the clock fields are that zone's, not local
-  return m[8] ? Date.parse(since.replace(" ", "T")) : local.getTime();
+  // time: the fields must come back unchanged (in UTC, so no local DST gap moves them)
+  const v = new Date(0);
+  v.setUTCFullYear(y!, mo! - 1, d!);
+  v.setUTCHours(h, mi, s);
+  if (v.toISOString().slice(0, 19) !== fields) throw bad();
+  const ms = m[7] ? Math.round(Number(m[7]) * 1000) : 0;
+  const zone = m[8]?.toUpperCase();
+  if (!zone) return new Date(y!, mo! - 1, d!, h, mi, s, ms).getTime();
+  return Date.parse(`${fields}.${pad(ms, 3)}${zone}`);
 }
 
 /** Parse every session and apply the common filters (local / cwd / since / exclude). */
