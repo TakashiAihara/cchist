@@ -322,12 +322,14 @@ on the staged files only where possible):
 
 - `oxfmt --check` — formatting
 - `oxlint` — linting
-- `tsc --noEmit` — typecheck (only when a `.ts`/`.tsx` file is staged)
+- `tsc --noEmit` — typecheck (when a `.ts` file, `tsconfig.json`, `package.json` or
+  `bun.lock` is staged)
 
 `bun test` stays in CI rather than the commit hook (the same suite runs there).
-The hook lives in `.git/hooks/pre-commit`; its source of truth is
-[`lefthook.yml`](lefthook.yml). Bypass once in an emergency with
-`git commit --no-verify`.
+The hook's source of truth is [`lefthook.yml`](lefthook.yml). Bypass once in an
+emergency with `git commit --no-verify`. Without a `.git` directory, without
+lefthook (`bun install --production`) or with `core.hooksPath` set, `bun install`
+still succeeds and prints that no hook was installed.
 
 ## Design
 
