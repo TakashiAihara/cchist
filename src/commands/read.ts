@@ -82,6 +82,11 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
   const selected = all.filter((m) => inAnyRange(m.index, ranges, m.queued) || focused(m));
 
   if (opts.json) {
+    // like search --json: print [] so a pipe still parses, then exit 2
+    if (!selected.length) {
+      json([]);
+      throw notFound("no messages in the given range(s)");
+    }
     return json(
       selected.map((m) => ({
         index: msgLabel(m),
@@ -102,12 +107,15 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
   }
 
   if (!selected.length) throw notFound("no messages in the given range(s)");
-  const blocks = selected.map((m) => renderMsg(m, opts, cut));
-  if (focus.length) return printFocused(selected, blocks, focused, budget);
+  if (focus.length) {
+    const blocks = selected.map((m) => renderMsg(m, opts, cut));
+    return printFocused(selected, blocks, focused, budget);
+  }
 
   let spent = 0;
   let shown = 0;
-  for (const block of blocks) {
+  for (const m of selected) {
+    const block = renderMsg(m, opts, cut);
     spent += approxTokens(block);
     if (spent > budget && shown > 0) {
       console.log(
@@ -122,9 +130,9 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
 
 /**
  * `--focus`: the focused messages are always printed, even past the budget, then
- * the budget left over goes to their neighbours, nearest first, until one does not
- * fit, so the context around the focus stays unbroken. Output keeps file order,
- * with a marker where the budget skipped messages.
+ * the budget left over goes to their neighbours, nearest first; one that does not
+ * fit is skipped and the next nearest tried, so a large neighbour does not waste
+ * the rest. Output keeps file order, with a marker where the budget skipped messages.
  */
 function printFocused(
   msgs: Msg[],
@@ -137,16 +145,21 @@ function printFocused(
   if (spent > budget) {
     console.error(`cchist: --focus alone is ~${spent} tokens, over the budget of ${budget}`);
   }
-  const at = keep.flatMap((k, i) => (k ? [i] : []));
-  const dist = (i: number) => Math.min(...at.map((j) => Math.abs(i - j)));
+  // distance to the nearest focused message, in two sweeps
+  const dist = keep.map(() => Infinity);
+  for (let i = 0, d = Infinity; i < keep.length; i++) dist[i] = d = keep[i] ? 0 : d + 1;
+  for (let i = keep.length - 1, d = Infinity; i >= 0; i--) {
+    d = keep[i] ? 0 : d + 1;
+    dist[i] = Math.min(dist[i]!, d);
+  }
   const order = blocks
     .map((_, i) => i)
     .filter((i) => !keep[i])
     // sort is stable, so of two equally near the earlier comes first
-    .sort((a, b) => dist(a) - dist(b));
+    .sort((a, b) => dist[a]! - dist[b]!);
   for (const i of order) {
     const cost = approxTokens(blocks[i]!);
-    if (spent + cost > budget) break;
+    if (spent + cost > budget) continue;
     spent += cost;
     keep[i] = true;
   }

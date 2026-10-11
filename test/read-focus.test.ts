@@ -63,8 +63,21 @@ describe("read --focus", () => {
     expect(read(["--focus", "m99", "--json"]).code).toBe(2);
   });
 
-  test("ranges that match no message exit 2", () => {
+  test("ranges that match no message exit 2; --json prints [] first", () => {
     expect(read(["m99"]).code).toBe(2);
+    const j = read(["m99", "--json"]);
+    expect([j.code, JSON.parse(j.out)]).toEqual([2, []]);
+  });
+
+  test("two focus ranges each pull in their own nearest neighbours", () => {
+    const h = heads(read(["--budget", "240", "--focus", "m0", "--focus", "m5"]).out);
+    expect(h.map((l) => l.replace(/ user .*/, ""))).toEqual([
+      "── m0",
+      "── m1",
+      skip(2),
+      "── m4",
+      "── m5",
+    ]);
   });
 
   test("without --focus the budget simply stops", () => {
@@ -78,7 +91,7 @@ describe("read --focus", () => {
     expect(h.map((l) => l.slice(0, 5))).toEqual(["── m0", "── m5"]);
   });
 
-  test("filling stops at the first neighbour that does not fit, so the context stays unbroken", () => {
+  test("a neighbour that does not fit is skipped and a farther one tried", () => {
     const f2 = join(root, "-p", "mixed.jsonl");
     const msg = (i: number, n: number) => ({
       type: "user",
@@ -97,8 +110,8 @@ describe("read --focus", () => {
       },
     );
     expect(heads(r.stdout.toString()).map((l) => l.replace(/ user .*/, ""))).toEqual([
-      // m0 would fit, but past m1 it would leave a gap next to the focus
-      skip(2),
+      "── m0",
+      skip(1),
       "── m2",
     ]);
   });
