@@ -2,13 +2,13 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { commandKeys, commandWords } from "../src/commands/bash";
+import { commandKeys } from "../src/commands/bash";
+import { commandNames } from "../src/lib/shell";
 
-describe("commandWords", () => {
+describe("commandNames", () => {
   const cases: [string, string[]][] = [
     ["ls -la", ["ls"]],
     ["  git    status ", ["git"]],
-    ["FOO=bar baz qux", ["baz"]],
     ["A=1 B=2 npm run x", ["npm"]],
     ["", []],
     ["FOO=bar", []],
@@ -16,18 +16,43 @@ describe("commandWords", () => {
     ["git log | head -5; echo done || true", ["git", "head", "echo", "true"]],
     ["make 2>&1 | tee log", ["make", "tee"]],
     ["sleep 5 & wait", ["sleep", "wait"]],
-    ['SP=$(scratchpad) && cat "$SP/x"', ["cat"]],
+    ["2>&1 make", ["make"]],
+    ['SP=$(scratchpad) && cat "$SP/x"', ["scratchpad", "cat"]],
     ['"$(readlink -f x)" --version', ["readlink"]],
+    ['"$(cc-path)/bin/memory-scan" --repo x', ["cc-path", "$(…)/bin/memory-scan"]],
+    ['echo "$(echo "a;b")"', ["echo", "echo"]],
+    ['echo "$(gh x --jq ".[] | select(.n==\\"$l\\")")"', ["gh", "echo"]],
+    ["echo `date; ls`", ["date", "ls", "echo"]],
     ["echo 'a && b' \"c; d\"", ["echo"]],
+    ["echo a\\;b", ["echo"]],
     ["(cd src && make)", ["cd", "make"]],
-    ["for f in a b; do git add $f; done", ["for", "git"]],
-    ["if grep -q x f; then echo y; fi", ["grep", "echo"]],
-    ["bash <<'EOF'\nset -e\ncurl x\nEOF", ["bash"]],
-    [String.raw`echo a\;b`, ["echo"]],
+    ["{ a; b; } > f", ["a", "b"]],
+    ["time (bun x; echo y)", ["bun", "echo"]],
+    ["for f in a b; do git add $f; done", ["git"]],
+    ["for ((i=0;i<3;i++)); do x; done", ["x"]],
+    ["select x in a b; do y; done", ["y"]],
+    ["if grep -q x f; then echo y; elif z; then w; else v; fi", ["grep", "echo", "z", "w", "v"]],
+    ["while read -r l; do echo $l; done < f", ["read", "echo"]],
+    ["until ! ok; do sleep 1; done", ["ok", "sleep"]],
+    ["if (( n > 3 )); then go; fi", ["go"]],
+    ["case $x in a|b) one ;; (*) two;; esac; after", ["one", "two", "after"]],
+    ["mk(){ make; }", ["make"]],
+    ["function f { g; }", ["g"]],
+    ["ls # a; b", ["ls"]],
+    ["# just a comment\nls", ["ls"]],
+    ["cd x && \\\n  make", ["cd", "make"]],
+    ["a\nb\nc", ["a", "b", "c"]],
+    ["bash <<'EOF'\nset -e\ncurl x\nEOF\nls", ["bash", "ls"]],
+    ["cat <<-EOF | grep x\n\tbody\n\tEOF\nwc", ["cat", "grep", "wc"]],
+    ["L[a]=1 x", ["x"]],
+    ["time make", ["make"]],
+    ["python3 - <<'PY'\nimport os\nEOF\nPY\nls", ["python3", "ls"]],
+    ["cat < in > out 2>> err", ["cat"]],
+    ["[ -f x ] && [[ $a > b ]]", ["[", "[["]],
   ];
   for (const [cmd, want] of cases) {
     test(JSON.stringify(cmd), () => {
-      expect(commandWords(cmd)).toEqual(want);
+      expect(commandNames(cmd)).toEqual(want);
     });
   }
 });
@@ -178,6 +203,18 @@ describe("bash <id>", () => {
     const r = await cli(["bash", "aaaa", "--json"]);
     expect(r.code).toBe(0);
     expect(JSON.parse(r.stdout)).toEqual({ git: 2, ls: 1 });
+  });
+
+  test("one call counts every command it runs, and share is per command", async () => {
+    const p = join(root, "chain.jsonl");
+    writeFileSync(p, session(["cd x && git status | head", "git a | git b"]));
+    expect(JSON.parse((await cli(["bash", p, "--json"])).stdout)).toEqual({
+      git: 3,
+      cd: 1,
+      head: 1,
+    });
+    const row = (await cli(["bash", p])).stdout.split("\n").find((l) => l.startsWith("git "))!;
+    expect(row.trim().split(/\s+/)).toEqual(["git", "3", "60.0%"]);
   });
 
   test("without an id every session is counted", async () => {

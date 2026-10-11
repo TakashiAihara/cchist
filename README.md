@@ -76,7 +76,7 @@ cchist stats  --by day|repo|model|session [--since 2026-06-01] [--local] [--cost
 cchist tokens [--since 2026-06-01] [--local] [--cost]  # grand-total token usage (once per API call)
 cchist tools  [--since 2026-06-01] [--local]      # tool-call frequency
 cchist tools  --expand-skills                     # break Skill into Skill:<name>
-cchist bash   [--top 25] [--full]                 # most-used Bash commands
+cchist bash   [--top 25] [--full]                 # most-run commands across Bash calls (each command a call runs counts)
 cchist bash   <id|latest> [--top 25] [--full]     # one session's Bash commands
 cchist bash   --with-results [--since D]          # one JSON line per call with its result (id, runInBackground, isError, result, resultChars)
 cchist bash   --full --json                       # keys are whole commands; the table shows 60 chars
@@ -120,6 +120,16 @@ assistant thinking blocks. `--context <n>` sets the excerpt width and `--limit
 common filters are rejected with it, exit 3), and
 `--group` groups hits by session (most hits first, `--hits-per <n>` excerpts
 each). Tool calls are intentionally out of scope — use `bash` / `files` for those.
+
+### `bash`
+
+`bash` counts the commands each Bash call runs, by name: `cd x && git status |
+head` counts cd, git and head once each, and `SP=$(scratchpad)` counts scratchpad.
+Commands in `$( )`, backticks, subshells and later lines of a script count;
+assignments, redirect targets, comments, heredoc bodies, `for` / `case` headers,
+case patterns and function names do not. A wrapper (`env`, `timeout`, `command`,
+`sudo`) counts as itself. `count` and `share` are therefore per command run, not per
+Bash call; `--full` keys by the whole call instead.
 
 ### `commands` / `tools`
 

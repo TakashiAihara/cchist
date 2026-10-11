@@ -144,7 +144,7 @@ addExclude(
   program
     .command("bash")
     .description(
-      "most-used Bash commands (leading word of each chained command; --full for the whole command)",
+      "most-run commands: each command a Bash call runs counts once (--full: one key per call)",
     )
     .argument(
       "[id]",
@@ -157,7 +157,7 @@ addExclude(
     )
     .option(
       "--full",
-      "group by the whole command instead of the leading word (the table shows it shortened)",
+      "group by the whole Bash call instead of each command's name (the table shows it shortened)",
     )
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
