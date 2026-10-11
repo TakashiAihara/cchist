@@ -186,8 +186,10 @@ Active time counts only stretches of user / assistant messages (and prompts type
 mid-turn) with no gap of `--idle-gap` minutes (default 15) or more. Bookkeeping
 records, ccx heartbeat prompts and their `.` replies are left out, so an idle
 session that is merely kept alive adds nothing. It is reported summed over sessions
-and as wall-clock time (overlapping sessions counted once). `--since` drops the
+and as wall-clock time (overlapping sessions counted once); records a resumed
+session copied from its original (same uuid) count once. `--since` drops the
 records before it. The hour histogram counts the records inside active stretches.
+A tool call longer than the idle gap writes nothing while it runs, so it counts as idle.
 
 ### Common flags
 

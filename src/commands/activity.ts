@@ -54,7 +54,7 @@ export function counts(r: any): boolean {
   const typed = r.type === "attachment" && r.attachment?.type === "queued_command";
   if (r.type !== "user" && r.type !== "assistant" && !typed) return false;
   const text = recordText(r);
-  if (text.includes('kind="heartbeat"')) return false;
+  if (text.trimStart().startsWith('<channel source="ccx" kind="heartbeat"')) return false;
   return !(r.type === "assistant" && text.trim() === ".");
 }
 
@@ -86,11 +86,15 @@ export function activity(opts: Opts): void {
   let sessions = 0;
   let records = 0;
   let totalMs = 0;
+  // a resumed or forked session copies earlier records (same uuid) into its own file
+  const seen = new Set<string>();
 
-  for (const { recs } of iterFiltered(opts)) {
+  // oldest file first, so a copied record stays with the session that wrote it
+  for (const { recs } of [...iterFiltered(opts)].reverse()) {
     sessions++;
     const t = recs
       .filter((r) => r.timestamp && counts(r))
+      .filter((r) => !r.uuid || (!seen.has(r.uuid) && Boolean(seen.add(r.uuid))))
       .map((r) => Date.parse(r.timestamp))
       // --since counts only what happened at or after it, as in tokens / stats
       .filter((n) => !Number.isNaN(n) && (sinceT == null || n >= sinceT))

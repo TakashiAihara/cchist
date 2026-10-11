@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { activeMs, counts, wallMs } from "../src/commands/activity";
@@ -26,7 +26,7 @@ describe("activeMs", () => {
 });
 
 describe("activity --idle-gap", () => {
-  for (const bad of ["0", "x", "-5"]) {
+  for (const bad of ["0", "x", "-5", "0.5"]) {
     test(`--idle-gap ${bad} exits 3`, () => {
       const r = Bun.spawnSync(["bun", "run", "src/index.ts", "activity", "--idle-gap", bad], {
         cwd: `${import.meta.dir}/..`,
@@ -45,6 +45,7 @@ describe("activity --json", () => {
       const rec = (min: number) =>
         JSON.stringify({
           type: "user",
+          uuid: `u${min}`,
           cwd: "/p",
           timestamp: new Date(Date.UTC(2026, 5, 1, 0, min)).toISOString(),
         });
@@ -79,6 +80,11 @@ describe("activity --json", () => {
           rec(100),
         ].join("\n") + "\n",
       );
+      // a resumed copy of the first two records (same uuids) must not be counted again
+      writeFileSync(join(root, "-p", "u.jsonl"), [rec(0), rec(5)].join("\n") + "\n");
+      // the copy is written after the original, so it is the newer file
+      utimesSync(join(root, "-p", "s.jsonl"), 1_780_000_000, 1_780_000_000);
+      utimesSync(join(root, "-p", "u.jsonl"), 1_780_100_000, 1_780_100_000);
       // a second session overlapping 0-5 adds to the sum but not the wall clock
       writeFileSync(join(root, "-p", "t.jsonl"), [rec(1), rec(4)].join("\n") + "\n");
       const run = (...extra: string[]) =>
@@ -125,9 +131,10 @@ describe("counts", () => {
     expect(counts({ type: "system", subtype: "stop_hook_summary" })).toBe(false);
     expect(counts({ type: "queue-operation", operation: "enqueue" })).toBe(false);
     expect(counts({ type: "attachment", attachment: { type: "date" } })).toBe(false);
-    expect(counts({ type: "user", message: { content: '<channel kind="heartbeat">' } })).toBe(
-      false,
-    );
+    const beat = '<channel source="ccx" kind="heartbeat">\nheartbeat\n</channel>';
+    expect(counts({ type: "user", message: { content: beat } })).toBe(false);
+    // a prompt that only quotes the tag is still a prompt
+    expect(counts({ type: "user", message: { content: `why does ${beat} fire?` } })).toBe(true);
     expect(counts({ type: "assistant", message: { content: [{ type: "text", text: "." }] } })).toBe(
       false,
     );

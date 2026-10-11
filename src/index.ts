@@ -9,7 +9,7 @@ import { tokens } from "./commands/tokens";
 import { tools } from "./commands/tools";
 import { bash } from "./commands/bash";
 import { files } from "./commands/files";
-import { activity } from "./commands/activity";
+import { activity, DEFAULT_IDLE_GAP_MIN } from "./commands/activity";
 import { search } from "./commands/search";
 import { commands } from "./commands/commands";
 import { outline } from "./commands/outline";
@@ -179,7 +179,7 @@ addExclude(
     .description("active time + hour-of-day histogram")
     .option(
       "--idle-gap <min>",
-      "a gap of this many minutes or more between records is idle (default: 15)",
+      `a gap of this many minutes or more between records is idle (default: ${DEFAULT_IDLE_GAP_MIN})`,
     )
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
