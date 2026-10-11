@@ -143,7 +143,9 @@ addExclude(
 addExclude(
   program
     .command("bash")
-    .description("most-used Bash commands (leading word; --full for the whole command)")
+    .description(
+      "most-run commands: each command in a Bash call counts once per occurrence (--full: one key per call)",
+    )
     .argument(
       "[id]",
       "count one session: id (prefix ok), 'latest', or a path to a .jsonl (no filters with it)",
@@ -155,7 +157,7 @@ addExclude(
     )
     .option(
       "--full",
-      "group by the whole command instead of the leading word (the table shows it shortened)",
+      "group by the whole Bash call instead of each command's name (the table shows it shortened)",
     )
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")

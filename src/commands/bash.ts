@@ -3,22 +3,20 @@ import { invalidInput } from "../lib/errors";
 import { printBashCalls } from "./bash-calls";
 import { table, fmtNum, trunc, json, oneLine } from "../lib/format";
 import { intOption } from "../lib/options";
+import { commandNames } from "../lib/shell";
 import { type CommonFilter } from "../lib/types";
 
 type Opts = CommonFilter & { json?: boolean; top?: string; full?: boolean; withResults?: boolean };
 
-/** Leading command word, skipping `FOO=bar` env prefixes. */
-export function firstWord(cmd: string): string {
-  const parts = cmd.trim().split(/\s+/);
-  let i = 0;
-  while (i < parts.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(parts[i] ?? "")) i++;
-  return parts[i] ?? "?";
-}
-
-/** Bucket key for a command: the leading word, or with --full the whole trimmed command. */
-export function commandKey(cmd: string, full: boolean): string {
+/**
+ * Bucket keys for a command: the name of each command it runs (see commandNames),
+ * or with --full the whole trimmed command.
+ */
+export function commandKeys(cmd: string, full: boolean): string[] {
   // No cap: a shortened key would hide the rest of the command from --json consumers (#25)
-  return full ? cmd.trim() : firstWord(cmd);
+  if (full) return [cmd.trim()];
+  const words = commandNames(cmd);
+  return words.length ? words : ["?"];
 }
 
 export function bash(id: string | undefined, opts: Opts): void {
@@ -41,8 +39,9 @@ export function bash(id: string | undefined, opts: Opts): void {
       for (const b of r.message.content) {
         if (b?.type === "tool_use" && b.name === "Bash" && typeof b.input?.command === "string") {
           const cmd: string = b.input.command;
-          const key = commandKey(cmd, opts.full ?? false);
-          counts.set(key, (counts.get(key) ?? 0) + 1);
+          for (const key of commandKeys(cmd, opts.full ?? false)) {
+            counts.set(key, (counts.get(key) ?? 0) + 1);
+          }
         }
       }
     }

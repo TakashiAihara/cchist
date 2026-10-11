@@ -2,73 +2,140 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { commandKey, firstWord } from "../src/commands/bash";
+import { commandKeys } from "../src/commands/bash";
+import { commandNames } from "../src/lib/shell";
 
-describe("firstWord", () => {
-  test("returns the leading command word", () => {
-    expect(firstWord("ls -la")).toBe("ls");
-  });
-
-  test("collapses surrounding and inner whitespace", () => {
-    expect(firstWord("  git    status ")).toBe("git");
-  });
-
-  test("skips a single FOO=bar env prefix", () => {
-    expect(firstWord("FOO=bar baz qux")).toBe("baz");
-  });
-
-  test("skips multiple env prefixes", () => {
-    expect(firstWord("A=1 B=2 npm run x")).toBe("npm");
-  });
-
-  test("an empty command yields an empty token", () => {
-    expect(firstWord("")).toBe("");
-    expect(firstWord("   ")).toBe("");
-  });
-
-  test("returns ? when the command is only env assignments", () => {
-    // every token matches the env prefix, so the index runs past the end
-    expect(firstWord("FOO=bar")).toBe("?");
-  });
-
-  // Known noise (HANDOFF TODO #3): firstWord does not split on && | ; so a
-  // chained command is bucketed under its first token. Documented, not yet fixed.
-  test("known noise: chained command buckets under the first token", () => {
-    expect(firstWord("cd foo && git status")).toBe("cd");
-  });
+describe("commandNames", () => {
+  const cases: [string, string[]][] = [
+    ["ls -la", ["ls"]],
+    ["  git    status ", ["git"]],
+    ["A=1 B=2 npm run x", ["npm"]],
+    ["", []],
+    ["FOO=bar", []],
+    ["cd foo && git status", ["cd", "git"]],
+    ["git log | head -5; echo done || true", ["git", "head", "echo", "true"]],
+    ["make 2>&1 | tee log", ["make", "tee"]],
+    ["sleep 5 & wait", ["sleep", "wait"]],
+    ["2>&1 make", ["make"]],
+    ['SP=$(scratchpad) && cat "$SP/x"', ["scratchpad", "cat"]],
+    ['"$(readlink -f x)" --version', ["readlink"]],
+    ['"$(cc-path)/bin/memory-scan" --repo x', ["cc-path", "$(…)/bin/memory-scan"]],
+    ['echo "$(echo "a;b")"', ["echo", "echo"]],
+    ['echo "$(gh x --jq ".[] | select(.n==\\"$l\\")")"', ["gh", "echo"]],
+    ["echo `date; ls`", ["date", "ls", "echo"]],
+    ["echo 'a && b' \"c; d\"", ["echo"]],
+    ["echo a\\;b", ["echo"]],
+    ["(cd src && make)", ["cd", "make"]],
+    ["{ a; b; } > f", ["a", "b"]],
+    ["time (bun x; echo y)", ["bun", "echo"]],
+    ["for f in a b; do git add $f; done", ["git"]],
+    ["for ((i=0;i<3;i++)); do x; done", ["x"]],
+    ["select x in a b; do y; done", ["y"]],
+    ["if grep -q x f; then echo y; elif z; then w; else v; fi", ["grep", "echo", "z", "w", "v"]],
+    ["while read -r l; do echo $l; done < f", ["read", "echo"]],
+    ["until ! ok; do sleep 1; done", ["ok", "sleep"]],
+    ["if (( n > 3 )); then go; fi", ["go"]],
+    ["case $x in a|b) one ;; (*) two;; esac; after", ["one", "two", "after"]],
+    ["mk(){ make; }", ["make"]],
+    ["function f { g; }", ["g"]],
+    ["ls # a; b", ["ls"]],
+    ["# just a comment\nls", ["ls"]],
+    ["cd x && \\\n  make", ["cd", "make"]],
+    ["a\nb\nc", ["a", "b", "c"]],
+    ["bash <<'EOF'\nset -e\ncurl x\nEOF\nls", ["bash", "ls"]],
+    ["cat <<-EOF | grep x\n\tbody\n\tEOF\nwc", ["cat", "grep", "wc"]],
+    ["L[a]=1 x", ["x"]],
+    ["time make", ["make"]],
+    ["> out echo hi", ["echo"]],
+    ["files=($(git ls-files) $(ls)) && echo ok", ["git", "ls", "echo"]],
+    ['case "$c" in *claude*) echo "$c" | grep -o x ;; esac', ["echo", "grep"]],
+    ["case $x in (a) echo hi;; esac", ["echo"]],
+    ["case x in a) b;& c) d;; esac", ["b", "d"]],
+    ["case $x in a) one;& two) echo two;; esac", ["one", "echo"]],
+    ["case $x in a) one;;& b) two;; esac", ["one", "two"]],
+    ["[[ $x =~ ^(a|b)$ ]] && ok", ["[[", "ok"]],
+    ["[[ $x == a|b ]] && ok", ["[[", "ok"]],
+    ["echo ( && make", ["echo", "make"]],
+    ["exec 2>&- && ls", ["exec", "ls"]],
+    ["echo a >\ngit status", ["echo", "git"]],
+    ['echo ${X:-"$(git rev-parse HEAD)"}', ["git", "echo"]],
+    ["echo [[ | grep x", ["echo", "grep"]],
+    ["echo $(( $(wc -l < f) + 1 ))", ["wc", "echo"]],
+    ["(( $(nproc) > 2 )) && go", ["nproc", "go"]],
+    ["x=$((1<<2)); echo ok", ["echo"]],
+    ["(( x <<= 1 )); echo ok", ["echo"]],
+    ["if [[ -n $x && -f y ]]; then go; fi", ["[[", "go"]],
+    ["while [[ $a || $b ]]; do w; done", ["[[", "w"]],
+    ['echo ${x:-"}"} && ls', ["echo", "ls"]],
+    ["echo ${x:-$((1+2))} && ls", ["echo", "ls"]],
+    ["echo ${x:-$((1<<2))} && ls", ["echo", "ls"]],
+    ['cat << "EOF"\nbody\nEOF\nls', ["cat", "ls"]],
+    ['echo "$(cat <<< "x")" && ls', ["cat", "echo", "ls"]],
+    ["cat <<EOF\r\nrm x\r\nEOF\r\nls", ["cat", "ls"]],
+    ["diff <(sort a) <(sort b) > d", ["sort", "sort", "diff"]],
+    ["tee >(gzip > x) < f", ["gzip", "tee"]],
+    ["git commit -m \"$(cat <<'EOF'\nit's (done\nEOF\n)\" && git push", ["cat", "git", "git"]],
+    ["case $x in a|b|c) one;;\n d|e)\n two;; esac", ["one", "two"]],
+    ["extra=(-d x) && run", ["run"]],
+    ["local -a xs=(a b); ls *.zip(N)", ["local", "ls"]],
+    ["[[ $a && $b ]] && ok", ["[[", "ok"]],
+    ["echo $((1+2))", ["echo"]],
+    ["echo $(echo \\)) && ls", ["echo", "echo", "ls"]],
+    ["cat <<EOF\n  EOF\nrm x\nEOF\nls", ["cat", "ls"]],
+    ["cd x\r\ngit status -s", ["cd", "git"]],
+    ['echo "${X:-$(cc-sid)}" ${Y:-`date`} ${Z:-$(pwd)}', ["cc-sid", "date", "pwd", "echo"]],
+    ["\r ls　-la", ["ls"]],
+    [`${"$(".repeat(3)}x${")".repeat(3)}`, ["x"]],
+    // nesting past the cap is not followed
+    [`${"$(".repeat(40)}x${")".repeat(40)}`, []],
+    ['"$(dirname $(dirname "$0"))/run" go', ["dirname", "dirname", "$(…)/run"]],
+    ['"$(dirname $(pwd))" --version', ["pwd", "dirname"]],
+    ["python3 - <<'PY'\nimport os\nEOF\nPY\nls", ["python3", "ls"]],
+    ["cat < in > out 2>> err", ["cat"]],
+    ["[ -f x ] && [[ $a > b ]]", ["[", "[["]],
+  ];
+  for (const [cmd, want] of cases) {
+    test(JSON.stringify(cmd), () => {
+      expect(commandNames(cmd)).toEqual(want);
+    });
+  }
 });
 
-describe("commandKey", () => {
+describe("commandKeys", () => {
   test("full keeps a single-line command longer than 60 characters unchanged", () => {
     const cmd =
       "git log --oneline --since=2026-01-01 --until=2026-10-01 --author=TakashiAihara --all";
     expect(cmd.length).toBeGreaterThan(80);
-    expect(commandKey(cmd, true)).toBe(
+    expect(commandKeys(cmd, true)).toEqual([
       "git log --oneline --since=2026-01-01 --until=2026-10-01 --author=TakashiAihara --all",
-    );
+    ]);
   });
 
   test("full keeps an emoji that straddles the old 60 character cut intact", () => {
     const cmd = "echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🌈 done";
     // the emoji's high surrogate sits at unit 59, so a 60 unit cut would split the pair
     expect(cmd.indexOf("🌈")).toBe(59);
-    expect(commandKey(cmd, true)).toBe(
+    expect(commandKeys(cmd, true)).toEqual([
       "echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🌈 done",
-    );
+    ]);
   });
 
   test("full returns the whole trimmed command, every line included", () => {
-    expect(commandKey("cd src\nls -la\necho done", true)).toBe("cd src\nls -la\necho done");
+    expect(commandKeys("cd src\nls -la\necho done", true)).toEqual(["cd src\nls -la\necho done"]);
   });
 
   test("full trims surrounding whitespace but keeps the inner lines", () => {
-    expect(commandKey("\n  bun test\n  bun run lint  \n", true)).toBe("bun test\n  bun run lint");
+    expect(commandKeys("\n  bun test\n  bun run lint  \n", true)).toEqual([
+      "bun test\n  bun run lint",
+    ]);
   });
 
-  test("without full the key is the leading word", () => {
-    expect(commandKey("git log --oneline --since=2026-01-01 --until=2026-10-01", false)).toBe(
-      "git",
-    );
+  test("without full every command on the first line gives its leading word", () => {
+    expect(commandKeys("cd x && git log --oneline", false)).toEqual(["cd", "git"]);
+  });
+
+  test("a command with no word at all is counted as ?", () => {
+    expect(commandKeys("FOO=bar", false)).toEqual(["?"]);
   });
 });
 
@@ -180,6 +247,18 @@ describe("bash <id>", () => {
     const r = await cli(["bash", "aaaa", "--json"]);
     expect(r.code).toBe(0);
     expect(JSON.parse(r.stdout)).toEqual({ git: 2, ls: 1 });
+  });
+
+  test("one call counts every command it runs, and share is per command", async () => {
+    const p = join(root, "chain.jsonl");
+    writeFileSync(p, session(["cd x && git status | head", "git a | git b"]));
+    expect(JSON.parse((await cli(["bash", p, "--json"])).stdout)).toEqual({
+      git: 3,
+      cd: 1,
+      head: 1,
+    });
+    const row = (await cli(["bash", p])).stdout.split("\n").find((l) => l.startsWith("git "))!;
+    expect(row.trim().split(/\s+/)).toEqual(["git", "3", "60.0%"]);
   });
 
   test("without an id every session is counted", async () => {
