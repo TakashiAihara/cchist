@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
-import { type Call, type SessionMeta, addUsage, emptyUsage, localDay } from "./types";
+import { type Call, type SessionMeta, addUsage, emptyUsage, maxUsage } from "./types";
 
 /** Parse one session JSONL file into an aggregated SessionMeta (single pass). */
 export function parseSession(file: string): SessionMeta {
@@ -24,12 +24,11 @@ export function parseSession(file: string): SessionMeta {
     blocks: { text: 0, thinking: 0, toolUse: 0 },
     tools: {},
     skills: {},
-    calls: [],
-    turnsByDay: {},
-    toolsByDay: {},
+    events: { calls: [], turns: [], tools: [] },
+    mtimeMs: statSync(file).mtimeMs,
   };
   const models = new Set<string>();
-  const seenCalls = new Set<string>();
+  const seenCalls = new Map<string, Call>();
 
   const text = readFileSync(file, "utf8");
   for (const line of text.split("\n")) {
@@ -63,8 +62,7 @@ export function parseSession(file: string): SessionMeta {
         Array.isArray(c) && c.length > 0 && c.every((b: any) => b?.type === "tool_result");
       if (!isToolResult) {
         meta.userTurns++;
-        const day = localDay(rec.timestamp);
-        meta.turnsByDay[day] = (meta.turnsByDay[day] || 0) + 1;
+        meta.events.turns.push({ key: rec.uuid ?? null, ts: rec.timestamp ?? null });
       }
     }
 
@@ -74,24 +72,24 @@ export function parseSession(file: string): SessionMeta {
       if (rec.message.model && rec.message.model !== "<synthetic>") models.add(rec.message.model);
 
       const u = rec.message.usage;
-      // one response is written as one line per content block, each repeating the same usage
+      // one response is written as one line per content block, each repeating its usage
       const key = rec.message.id && rec.requestId ? `${rec.message.id}:${rec.requestId}` : null;
-      if (u && !(key && seenCalls.has(key))) {
-        if (key) seenCalls.add(key);
-        const call: Call = {
-          key,
-          ts: rec.timestamp ?? null,
-          usage: {
-            input: u.input_tokens || 0,
-            output: u.output_tokens || 0,
-            cacheRead: u.cache_read_input_tokens || 0,
-            cacheCreate: u.cache_creation_input_tokens || 0,
-            webSearch: u.server_tool_use?.web_search_requests || 0,
-            webFetch: u.server_tool_use?.web_fetch_requests || 0,
-          },
+      if (u) {
+        const usage = {
+          input: u.input_tokens || 0,
+          output: u.output_tokens || 0,
+          cacheRead: u.cache_read_input_tokens || 0,
+          cacheCreate: u.cache_creation_input_tokens || 0,
+          webSearch: u.server_tool_use?.web_search_requests || 0,
+          webFetch: u.server_tool_use?.web_fetch_requests || 0,
         };
-        meta.calls.push(call);
-        addUsage(meta.usage, call.usage);
+        const seen = key ? seenCalls.get(key) : undefined;
+        if (seen) maxUsage(seen.usage, usage);
+        else {
+          const call: Call = { key, ts: rec.timestamp ?? null, usage };
+          meta.events.calls.push(call);
+          if (key) seenCalls.set(key, call);
+        }
       }
 
       const content = rec.message.content;
@@ -101,8 +99,7 @@ export function parseSession(file: string): SessionMeta {
           else if (b?.type === "thinking") meta.blocks.thinking++;
           else if (b?.type === "tool_use") {
             meta.blocks.toolUse++;
-            const day = localDay(rec.timestamp);
-            meta.toolsByDay[day] = (meta.toolsByDay[day] || 0) + 1;
+            meta.events.tools.push({ key: b.id ?? null, ts: rec.timestamp ?? null });
             const n = b.name || "?";
             meta.tools[n] = (meta.tools[n] || 0) + 1;
             // Track which skill the assistant invoked when the tool is `Skill`,
@@ -120,6 +117,7 @@ export function parseSession(file: string): SessionMeta {
   if (meta.firstTs && meta.lastTs) {
     meta.durationMs = Date.parse(meta.lastTs) - Date.parse(meta.firstTs);
   }
+  for (const c of meta.events.calls) addUsage(meta.usage, c.usage);
   meta.models = [...models];
   return meta;
 }

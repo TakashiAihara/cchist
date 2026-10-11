@@ -153,10 +153,18 @@ default — raise with `--budget <n>` or lift it with `--no-budget`.
 
 Claude Code writes one API response as several lines (one per content block), each
 repeating the same usage. Usage is counted once per call, keyed by message id and
-request id. A resumed session copies earlier calls into its own file; those are
-counted once too, under the oldest session that holds them. `stats --by day` puts
-each call, prompt and tool call on the local date it happened (set `TZ` to change
-the zone), so a session spanning midnight shows up on both days.
+request id. A resumed session copies earlier records into its own file; copied
+calls, prompts (by record uuid) and tool calls (by tool_use id) are counted once
+too, under the least recently modified file that holds them (the original stops
+being written when the copy takes over). That is decided over every session before
+the filters run, so `--cwd` or `--exclude-*` never moves a copy's numbers.
+
+`--since` keeps the sessions active since the date and then counts only the events
+at or after it, so `stats --by day --since 2026-06-01` starts on that day. `--by day`
+puts each event on the local date it happened (set `TZ` to change the zone); its
+`sess` column counts the sessions active that day, so a session spanning midnight
+counts on both days. `sessions list` shows the output a session owns the same way;
+`--json` there keeps `usage` as the file's own total, copies included.
 
 ### Common flags
 

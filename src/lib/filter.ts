@@ -17,10 +17,18 @@ export function parseSince(since: string | undefined): number | null {
 
 /** Parse every session and apply the common filters (local / cwd / since / exclude). */
 export function loadSessions(opts: CommonFilter): SessionMeta[] {
+  return loadAll(opts).kept;
+}
+
+/**
+ * Every parsed session (`all`, newest mtime first) and the ones passing the filters
+ * (`kept`). Usage aggregation needs `all` to decide which session owns a copied call.
+ */
+export function loadAll(opts: CommonFilter): { all: SessionMeta[]; kept: SessionMeta[] } {
   // validate before listing so an invalid --since exits before any session file is read
   parseSince(opts.since);
-  const metas = listSessionFiles().map((f) => parseSession(f.file));
-  return applyFilter(metas, withConfigExcludes(opts));
+  const all = listSessionFiles().map((f) => parseSession(f.file));
+  return { all, kept: applyFilter(all, withConfigExcludes(opts)) };
 }
 
 /**
