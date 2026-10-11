@@ -2,73 +2,71 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { commandKey, firstWord } from "../src/commands/bash";
+import { commandKeys, commandWords } from "../src/commands/bash";
 
-describe("firstWord", () => {
-  test("returns the leading command word", () => {
-    expect(firstWord("ls -la")).toBe("ls");
-  });
-
-  test("collapses surrounding and inner whitespace", () => {
-    expect(firstWord("  git    status ")).toBe("git");
-  });
-
-  test("skips a single FOO=bar env prefix", () => {
-    expect(firstWord("FOO=bar baz qux")).toBe("baz");
-  });
-
-  test("skips multiple env prefixes", () => {
-    expect(firstWord("A=1 B=2 npm run x")).toBe("npm");
-  });
-
-  test("an empty command yields an empty token", () => {
-    expect(firstWord("")).toBe("");
-    expect(firstWord("   ")).toBe("");
-  });
-
-  test("returns ? when the command is only env assignments", () => {
-    // every token matches the env prefix, so the index runs past the end
-    expect(firstWord("FOO=bar")).toBe("?");
-  });
-
-  // Known noise (HANDOFF TODO #3): firstWord does not split on && | ; so a
-  // chained command is bucketed under its first token. Documented, not yet fixed.
-  test("known noise: chained command buckets under the first token", () => {
-    expect(firstWord("cd foo && git status")).toBe("cd");
-  });
+describe("commandWords", () => {
+  const cases: [string, string[]][] = [
+    ["ls -la", ["ls"]],
+    ["  git    status ", ["git"]],
+    ["FOO=bar baz qux", ["baz"]],
+    ["A=1 B=2 npm run x", ["npm"]],
+    ["", []],
+    ["FOO=bar", []],
+    ["cd foo && git status", ["cd", "git"]],
+    ["git log | head -5; echo done || true", ["git", "head", "echo", "true"]],
+    ["make 2>&1 | tee log", ["make", "tee"]],
+    ["sleep 5 & wait", ["sleep", "wait"]],
+    ['SP=$(scratchpad) && cat "$SP/x"', ["cat"]],
+    ['"$(readlink -f x)" --version', ["readlink"]],
+    ["echo 'a && b' \"c; d\"", ["echo"]],
+    ["(cd src && make)", ["cd", "make"]],
+    ["for f in a b; do git add $f; done", ["for", "git"]],
+    ["if grep -q x f; then echo y; fi", ["grep", "echo"]],
+    ["bash <<'EOF'\nset -e\ncurl x\nEOF", ["bash"]],
+    [String.raw`echo a\;b`, ["echo"]],
+  ];
+  for (const [cmd, want] of cases) {
+    test(JSON.stringify(cmd), () => {
+      expect(commandWords(cmd)).toEqual(want);
+    });
+  }
 });
 
-describe("commandKey", () => {
+describe("commandKeys", () => {
   test("full keeps a single-line command longer than 60 characters unchanged", () => {
     const cmd =
       "git log --oneline --since=2026-01-01 --until=2026-10-01 --author=TakashiAihara --all";
     expect(cmd.length).toBeGreaterThan(80);
-    expect(commandKey(cmd, true)).toBe(
+    expect(commandKeys(cmd, true)).toEqual([
       "git log --oneline --since=2026-01-01 --until=2026-10-01 --author=TakashiAihara --all",
-    );
+    ]);
   });
 
   test("full keeps an emoji that straddles the old 60 character cut intact", () => {
     const cmd = "echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🌈 done";
     // the emoji's high surrogate sits at unit 59, so a 60 unit cut would split the pair
     expect(cmd.indexOf("🌈")).toBe(59);
-    expect(commandKey(cmd, true)).toBe(
+    expect(commandKeys(cmd, true)).toEqual([
       "echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🌈 done",
-    );
+    ]);
   });
 
   test("full returns the whole trimmed command, every line included", () => {
-    expect(commandKey("cd src\nls -la\necho done", true)).toBe("cd src\nls -la\necho done");
+    expect(commandKeys("cd src\nls -la\necho done", true)).toEqual(["cd src\nls -la\necho done"]);
   });
 
   test("full trims surrounding whitespace but keeps the inner lines", () => {
-    expect(commandKey("\n  bun test\n  bun run lint  \n", true)).toBe("bun test\n  bun run lint");
+    expect(commandKeys("\n  bun test\n  bun run lint  \n", true)).toEqual([
+      "bun test\n  bun run lint",
+    ]);
   });
 
-  test("without full the key is the leading word", () => {
-    expect(commandKey("git log --oneline --since=2026-01-01 --until=2026-10-01", false)).toBe(
-      "git",
-    );
+  test("without full every command on the first line gives its leading word", () => {
+    expect(commandKeys("cd x && git log --oneline", false)).toEqual(["cd", "git"]);
+  });
+
+  test("a command with no word at all is counted as ?", () => {
+    expect(commandKeys("FOO=bar", false)).toEqual(["?"]);
   });
 });
 

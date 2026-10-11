@@ -143,7 +143,9 @@ addExclude(
 addExclude(
   program
     .command("bash")
-    .description("most-used Bash commands (leading word; --full for the whole command)")
+    .description(
+      "most-used Bash commands (leading word of each chained command; --full for the whole command)",
+    )
     .argument(
       "[id]",
       "count one session: id (prefix ok), 'latest', or a path to a .jsonl (no filters with it)",
