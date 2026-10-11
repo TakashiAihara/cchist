@@ -280,7 +280,7 @@ program
   .option("--tool-results", "include tool results")
   .option(
     "--focus <range>",
-    "always print this range within the budget, then fill the rest (repeatable)",
+    "always print this range, even past the budget, then fill what is left with its neighbours (repeatable)",
     collect,
     [],
   )

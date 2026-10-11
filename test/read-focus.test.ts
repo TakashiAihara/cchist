@@ -33,14 +33,38 @@ afterAll(() => {
 });
 
 describe("read --focus", () => {
-  test("the focused message is printed even past the budget, the rest fills in order", () => {
+  const skip = (n: number) =>
+    `… (${n} message${n > 1 ? "s" : ""} skipped by the budget — raise --budget or --no-budget)`;
+
+  test("the budget left after the focus goes to its nearest neighbours", () => {
     const h = heads(read(["--budget", "120", "--focus", "m4"]).out);
-    expect(h.map((l) => l.replace(/ user .*/, ""))).toEqual([
-      "── m0",
-      "… (3 messages skipped by the budget)",
-      "── m4",
-      "… (1 message skipped by the budget)",
+    expect(h.map((l) => l.replace(/ user .*/, ""))).toEqual([skip(3), "── m3", "── m4", skip(1)]);
+  });
+
+  test("a focus bigger than the budget is printed whole, with a warning", () => {
+    const r = Bun.spawnSync(
+      ["bun", "run", "src/index.ts", "read", file(), "--budget", "10", "--focus", "m2..m3"],
+      {
+        cwd: join(import.meta.dir, ".."),
+        env: { ...process.env, CCHIST_PROJECTS_DIR: root, CCHIST_CONFIG: join(root, "none.json") },
+      },
+    );
+    expect(heads(r.stdout.toString()).map((l) => l.replace(/ user .*/, ""))).toEqual([
+      skip(2),
+      "── m2",
+      "── m3",
+      skip(2),
     ]);
+    expect(r.stderr.toString()).toContain("over the budget of 10");
+  });
+
+  test("a --focus that matches no message exits 2, with --json too", () => {
+    expect(read(["--focus", "m99"]).code).toBe(2);
+    expect(read(["--focus", "m99", "--json"]).code).toBe(2);
+  });
+
+  test("ranges that match no message exit 2", () => {
+    expect(read(["m99"]).code).toBe(2);
   });
 
   test("without --focus the budget simply stops", () => {
@@ -54,7 +78,7 @@ describe("read --focus", () => {
     expect(h.map((l) => l.slice(0, 5))).toEqual(["── m0", "── m5"]);
   });
 
-  test("filling stops at the first message that does not fit, so the prefix stays contiguous", () => {
+  test("filling stops at the first neighbour that does not fit, so the context stays unbroken", () => {
     const f2 = join(root, "-p", "mixed.jsonl");
     const msg = (i: number, n: number) => ({
       type: "user",
@@ -63,7 +87,7 @@ describe("read --focus", () => {
     });
     writeFileSync(
       f2,
-      [msg(0, 2000), msg(1, 20), msg(2, 20)].map((r) => JSON.stringify(r)).join("\n") + "\n",
+      [msg(0, 20), msg(1, 2000), msg(2, 20)].map((r) => JSON.stringify(r)).join("\n") + "\n",
     );
     const r = Bun.spawnSync(
       ["bun", "run", "src/index.ts", "read", f2, "--budget", "100", "--focus", "m2"],
@@ -73,7 +97,8 @@ describe("read --focus", () => {
       },
     );
     expect(heads(r.stdout.toString()).map((l) => l.replace(/ user .*/, ""))).toEqual([
-      "… (2 messages skipped by the budget)",
+      // m0 would fit, but past m1 it would leave a gap next to the focus
+      skip(2),
       "── m2",
     ]);
   });

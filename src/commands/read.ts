@@ -75,6 +75,9 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
 
   const all = messagesFromRecords(readRecords(file));
   const focused = (m: Msg) => focus.length > 0 && inAnyRange(m.index, focus, m.queued);
+  if (focus.length && !all.some(focused)) {
+    throw notFound(`no messages match --focus ${(opts.focus ?? []).join(", ")}`);
+  }
   // a focused message is read even when it lies outside the ranges
   const selected = all.filter((m) => inAnyRange(m.index, ranges, m.queued) || focused(m));
 
@@ -118,9 +121,10 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
 }
 
 /**
- * `--focus`: the focused messages are always printed, then the budget left over
- * goes to the others in order. Output keeps file order, with a marker where the
- * budget skipped messages.
+ * `--focus`: the focused messages are always printed, even past the budget, then
+ * the budget left over goes to their neighbours, nearest first, until one does not
+ * fit, so the context around the focus stays unbroken. Output keeps file order,
+ * with a marker where the budget skipped messages.
  */
 function printFocused(
   msgs: Msg[],
@@ -130,8 +134,17 @@ function printFocused(
 ): void {
   const keep = msgs.map(focused);
   let spent = blocks.reduce((s, b, i) => s + (keep[i] ? approxTokens(b) : 0), 0);
-  for (let i = 0; i < blocks.length; i++) {
-    if (keep[i]) continue;
+  if (spent > budget) {
+    console.error(`cchist: --focus alone is ~${spent} tokens, over the budget of ${budget}`);
+  }
+  const at = keep.flatMap((k, i) => (k ? [i] : []));
+  const dist = (i: number) => Math.min(...at.map((j) => Math.abs(i - j)));
+  const order = blocks
+    .map((_, i) => i)
+    .filter((i) => !keep[i])
+    // sort is stable, so of two equally near the earlier comes first
+    .sort((a, b) => dist(a) - dist(b));
+  for (const i of order) {
     const cost = approxTokens(blocks[i]!);
     if (spent + cost > budget) break;
     spent += cost;
@@ -142,7 +155,7 @@ function printFocused(
   const flush = () => {
     if (!skipped) return;
     console.log(
-      `${first ? "" : "\n"}… (${skipped} message${skipped > 1 ? "s" : ""} skipped by the budget)`,
+      `${first ? "" : "\n"}… (${skipped} message${skipped > 1 ? "s" : ""} skipped by the budget — raise --budget or --no-budget)`,
     );
     first = false;
     skipped = 0;
