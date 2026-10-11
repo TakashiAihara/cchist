@@ -21,6 +21,7 @@ export function outline(idOrLatest: string, opts: Opts): void {
       msgs.map((m) => ({
         index: `m${m.index}`,
         role: m.role,
+        queued: m.queued,
         ts: m.ts,
         tools: m.tools.map((t) => t.name),
         summary: msgSummary(m, 200),
@@ -32,7 +33,8 @@ export function outline(idOrLatest: string, opts: Opts): void {
   let spent = 0;
   for (const m of msgs) {
     const ts = fmtTs(m.ts);
-    const line = `m${m.index}\t${ROLE_MARK[m.role]} ${m.role}\t${ts}\t${msgSummary(m)}`;
+    const role = m.queued ? `${m.role} (queued)` : m.role;
+    const line = `m${m.index}\t${ROLE_MARK[m.role]} ${role}\t${ts}\t${msgSummary(m)}`;
     spent += approxTokens(line);
     if (spent > budget) {
       console.log(`… (${msgs.length - m.index} more messages; raise --budget or --no-budget)`);

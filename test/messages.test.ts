@@ -102,3 +102,64 @@ describe("msgSummary", () => {
     expect(LONE_SURROGATE.test(cut)).toBe(false);
   });
 });
+
+describe("queued (mid-turn) user messages", () => {
+  const enqueue = (content: string, ts: string) => ({
+    type: "queue-operation",
+    operation: "enqueue",
+    content,
+    timestamp: ts,
+  });
+  const attachment = (prompt: string, ts: string, commandMode = "prompt") => ({
+    type: "attachment",
+    timestamp: ts,
+    attachment: { type: "queued_command", commandMode, prompt },
+  });
+  const user = (content: string, ts: string) => ({
+    type: "user",
+    timestamp: ts,
+    message: { role: "user", content },
+  });
+  const assistant = (text: string, ts: string) => ({
+    type: "assistant",
+    timestamp: ts,
+    message: { content: [{ type: "text", text }] },
+  });
+
+  const msgs = messagesFromRecords([
+    user("start", "2026-06-01T00:00:00Z"),
+    // only in the queue: enqueued and removed, never delivered as a record
+    enqueue("stop and fix the test", "2026-06-01T00:00:05Z"),
+    { type: "queue-operation", operation: "remove", content: "stop and fix the test" },
+    // enqueued, then delivered as an attachment: shown once, at the attachment
+    enqueue("also update README", "2026-06-01T00:00:06Z"),
+    assistant("working", "2026-06-01T00:00:07Z"),
+    attachment("also update README", "2026-06-01T00:00:08Z"),
+    attachment("also update README", "2026-06-01T00:00:08.500Z"),
+    // enqueued, then dequeued as a normal user record: shown only as that record
+    enqueue("next task", "2026-06-01T00:00:09Z"),
+    user("next task", "2026-06-01T00:00:10Z"),
+    attachment("next task", "2026-06-01T00:00:10.500Z"),
+    // machine messages are not something the user typed
+    enqueue("<task-notification>done</task-notification>", "2026-06-01T00:00:11Z"),
+    attachment(
+      "<task-notification>x</task-notification>",
+      "2026-06-01T00:00:12Z",
+      "task-notification",
+    ),
+  ]);
+
+  test("each typed message appears once, in order, tagged queued", () => {
+    expect(msgs.map((m) => [m.role, m.queued, m.text, m.ts])).toEqual([
+      ["user", false, "start", "2026-06-01T00:00:00Z"],
+      ["user", true, "stop and fix the test", "2026-06-01T00:00:05Z"],
+      ["assistant", false, "working", "2026-06-01T00:00:07Z"],
+      ["user", true, "also update README", "2026-06-01T00:00:08Z"],
+      ["user", false, "next task", "2026-06-01T00:00:10Z"],
+    ]);
+  });
+
+  test("indexes stay sequential so ranges still address them", () => {
+    expect(msgs.map((m) => m.index)).toEqual([0, 1, 2, 3, 4]);
+  });
+});

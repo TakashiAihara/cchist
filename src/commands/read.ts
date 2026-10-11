@@ -17,7 +17,7 @@ type Opts = {
 /** Render one message to a string honoring the include flags. */
 function renderMsg(m: Msg, opts: Opts): string {
   const ts = m.ts ? ` ${fmtTs(m.ts, true)}` : "";
-  const head = `── m${m.index} ${m.role}${ts} ──`;
+  const head = `── m${m.index} ${m.role}${m.queued ? " (queued)" : ""}${ts} ──`;
   const parts: string[] = [head];
 
   if (m.isToolResult) {
@@ -64,6 +64,7 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
         ...(opts.thinking ? { thinking: m.thinking } : {}),
         ...(opts.tools ? { tools: m.tools } : {}),
         isToolResult: m.isToolResult,
+        queued: m.queued,
       })),
     );
   }
