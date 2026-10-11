@@ -65,9 +65,15 @@ describe("projectsDirs", () => {
     withEnv({ CLAUDE_PROJECTS_DIR: "/p" }, () => expect(projectsDirs()).toEqual(["/p"]));
   });
 
-  test("searches CLAUDE_CONFIG_DIR/projects before ~/.claude/projects", () => {
+  test("lists CLAUDE_CONFIG_DIR/projects first (it wins mtime ties)", () => {
     withEnv({ CLAUDE_CONFIG_DIR: "/cfg" }, () =>
       expect(projectsDirs()).toEqual(["/cfg/projects", join(H, ".claude", "projects")]),
+    );
+  });
+
+  test("a relative CLAUDE_CONFIG_DIR is resolved against the cwd", () => {
+    withEnv({ CLAUDE_CONFIG_DIR: "relcfg" }, () =>
+      expect(projectsDirs()[0]).toBe(join(process.cwd(), "relcfg", "projects")),
     );
   });
 
@@ -136,9 +142,48 @@ describe("listSessionFiles", () => {
       mkdirSync(join(one, "-b"));
       writeFileSync(join(one, "-a", "same.jsonl"), "{}\n");
       writeFileSync(join(one, "-b", "same.jsonl"), "{}\n");
+      expect(listSessionFiles([one])).toHaveLength(2);
       expect(listSessionFiles([one, join(one, "missing")])).toHaveLength(2);
     } finally {
       rmSync(one, { recursive: true, force: true });
+    }
+  });
+
+  test("an mtime tie between roots goes to the earlier root", () => {
+    const a = mkdtempSync(join(tmpdir(), "cchist-tie-a-"));
+    const b = mkdtempSync(join(tmpdir(), "cchist-tie-b-"));
+    try {
+      mkdirSync(join(a, "-p"));
+      mkdirSync(join(b, "-p"));
+      writeFileSync(join(a, "-p", "t.jsonl"), "{}\n");
+      writeFileSync(join(b, "-p", "t.jsonl"), "{}\n");
+      utimesSync(join(a, "-p", "t.jsonl"), 1_700_000_000, 1_700_000_000);
+      utimesSync(join(b, "-p", "t.jsonl"), 1_700_000_000, 1_700_000_000);
+      expect(listSessionFiles([a, b]).map((f) => f.file)).toEqual([join(a, "-p", "t.jsonl")]);
+    } finally {
+      rmSync(a, { recursive: true, force: true });
+      rmSync(b, { recursive: true, force: true });
+    }
+  });
+
+  test("a root is ranked by its newest copy, not its oldest", () => {
+    const a = mkdtempSync(join(tmpdir(), "cchist-rank-a-"));
+    const b = mkdtempSync(join(tmpdir(), "cchist-rank-b-"));
+    try {
+      mkdirSync(join(a, "-p"));
+      mkdirSync(join(a, "-q"));
+      mkdirSync(join(b, "-p"));
+      const aNew = join(a, "-p", "r.jsonl");
+      const aOld = join(a, "-q", "r.jsonl");
+      const bMid = join(b, "-p", "r.jsonl");
+      for (const f of [aNew, aOld, bMid]) writeFileSync(f, "{}\n");
+      utimesSync(aNew, 1_700_000_300, 1_700_000_300);
+      utimesSync(aOld, 1_700_000_050, 1_700_000_050);
+      utimesSync(bMid, 1_700_000_200, 1_700_000_200);
+      expect(listSessionFiles([a, b]).map((f) => f.file)).toEqual([aNew, aOld]);
+    } finally {
+      rmSync(a, { recursive: true, force: true });
+      rmSync(b, { recursive: true, force: true });
     }
   });
 

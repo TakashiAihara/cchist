@@ -69,8 +69,9 @@ function scanRoot(dir: string): FileEntry[] {
  * "latest" is files[0] and a prefix matches the most recent session sharing it.
  */
 export function resolveSessionFile(idOrLatest: string, files?: FileEntry[]): string | null {
-  // a transcript copied from another host or profile can be read wherever it sits
-  if (idOrLatest.endsWith(".jsonl") && isFile(idOrLatest)) return resolve(idOrLatest);
+  // a transcript copied from another host or profile can be read wherever it sits;
+  // no session id ends in .jsonl, so a missing path needs no scan to answer null
+  if (idOrLatest.endsWith(".jsonl")) return isFile(idOrLatest) ? resolve(idOrLatest) : null;
   files ??= listSessionFiles();
   if (idOrLatest === "latest") return files[0]?.file ?? null;
   for (const f of files) {
