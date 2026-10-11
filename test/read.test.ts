@@ -120,6 +120,15 @@ describe("read --truncate", () => {
     expect(rows.map((x: any) => x.isError)).toEqual([false, false, true]);
   });
 
+  test("no warning when there is something to cut, or under --json", async () => {
+    expect((await cli(["read", file(), "--tools", "--truncate", "10"])).stderr).toBe("");
+    expect((await cli(["read", file(), "--json", "--truncate", "10"])).stderr).toBe("");
+  });
+
+  test("outline marks a failed tool result too", async () => {
+    expect((await cli(["outline", file()])).stdout).toContain("m2\t▶ user (tool error)");
+  });
+
   test("without --tools or --tool-results it warns that nothing is cut", async () => {
     const r = await cli(["read", file(), "--truncate", "10"]);
     expect(r.code).toBe(0);

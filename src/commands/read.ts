@@ -51,7 +51,8 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     throw invalidInput(`invalid --truncate: ${opts.truncate} (use a positive integer)`);
   }
   const cut = opts.truncate === undefined ? null : Number(opts.truncate);
-  if (cut !== null && !opts.tools && !opts.toolResults) {
+  // --json always carries tool result text, so only plain output can have nothing to cut
+  if (cut !== null && !opts.json && !opts.tools && !opts.toolResults) {
     console.error(
       "cchist: --truncate only cuts tool calls and results; add --tools or --tool-results",
     );

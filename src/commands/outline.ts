@@ -34,7 +34,8 @@ export function outline(idOrLatest: string, opts: Opts): void {
   // count by position: a queued message shares its anchor's index
   for (const [k, m] of msgs.entries()) {
     const ts = fmtTs(m.ts);
-    const role = m.queued != null ? `${m.role} (queued)` : m.role;
+    const tag = m.queued != null ? " (queued)" : m.isError ? " (tool error)" : "";
+    const role = `${m.role}${tag}`;
     const line = `${msgLabel(m)}\t${ROLE_MARK[m.role]} ${role}\t${ts}\t${msgSummary(m)}`;
     spent += approxTokens(line);
     if (spent > budget) {

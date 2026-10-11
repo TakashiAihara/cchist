@@ -153,7 +153,7 @@ one-line summary). `read <id> [ranges...]` prints full message text for the give
 ranges (`m3`, `3`, `m3..m7`, `3..7`; default all), with `--tools` / `--thinking`
 / `--tool-results` to include those. Both budget output to ~6000 approx tokens by
 default — raise with `--budget <n>` or lift it with `--no-budget`. `read --truncate
-<n>` (with `--tools` / `--tool-results`) cuts each tool result, and each string inside
+<n>` (with `--tools` / `--tool-results`; `--json` always has the results) cuts each tool result, and each string inside
 a tool input, to n characters and appends `… (+N chars)` with the number dropped, so
 a skim shows where something was cut. `--json` keeps the input valid JSON and adds
 `truncated: N` to a cut tool result.
