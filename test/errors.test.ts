@@ -109,6 +109,17 @@ describe("CLI integration (top-level catch wiring)", () => {
     expect(r.stderr).toContain("cchist: invalid range");
   });
 
+  test("positive control: the unreadable projects dir alone fails listing with exit 1", async () => {
+    const r = await runUnreadable(["tokens"]);
+    expect(r.code).toBe(EXIT.ERROR);
+  });
+
+  test("invalid --since on search --session → exit 3", async () => {
+    const r = await runUnreadable(["search", "x", "--session", "latest", "--since", "not-a-date"]);
+    expect(r.code).toBe(EXIT.INVALID_INPUT);
+    expect(r.stderr).toContain("cchist: invalid --since");
+  });
+
   test("invalid --since date → exit 3 before the scan", async () => {
     const r = await runUnreadable(["tokens", "--since", "not-a-date"]);
     expect(r.code).toBe(EXIT.INVALID_INPUT);

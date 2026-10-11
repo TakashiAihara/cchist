@@ -1,9 +1,9 @@
 import { listSessionFiles } from "../lib/discover";
 import { parseSession } from "../lib/parse";
-import { loadSessions, parseSince } from "../lib/filter";
+import { keepSession, loadSessions, parseSince } from "../lib/filter";
 import { withConfigExcludes } from "../lib/config";
 import { notFound } from "../lib/errors";
-import { isExcluded } from "../lib/exclude";
+
 import { table, fmtK, trunc, json } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
@@ -30,16 +30,12 @@ type LatestOpts = CommonFilter & { json?: boolean };
 
 export function sessionsLatest(opts: LatestOpts): void {
   const merged = withConfigExcludes(opts);
-  // validate before the scan so an invalid --since exits without reading any file
+  // validate before the scan so an invalid --since exits before any session file is read
   const sinceT = parseSince(merged.since);
   // walk mtime-desc and parse lazily until one passes the filters
   for (const f of listSessionFiles()) {
     const m = parseSession(f.file);
-    if (merged.local && m.cwd !== process.cwd()) continue;
-    if (merged.cwd && m.cwd !== merged.cwd) continue;
-    // same keep-rule as applyFilter: a session with no lastTs can't satisfy --since
-    if (sinceT != null && !(m.lastTs != null && Date.parse(m.lastTs) >= sinceT)) continue;
-    if (isExcluded({ cwd: m.cwd, entrypoint: m.entrypoint }, merged)) continue;
+    if (!keepSession(m, merged, sinceT)) continue;
     if (opts.json) return json(m);
     console.log(m.id); // default: bare id (scriptable)
     return;

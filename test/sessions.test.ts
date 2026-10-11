@@ -73,5 +73,12 @@ describe("sessions latest --since", () => {
   test("exits 2 when every session predates --since", async () => {
     const r = await run(["sessions", "latest", "--since", "2027-01-01"]);
     expect(r.code).toBe(EXIT.NOT_FOUND);
+    expect(r.stderr).toContain("cchist: no sessions found");
+  });
+
+  test("a last timestamp equal to --since is kept (on/after is inclusive)", async () => {
+    const r = await run(["sessions", "latest", "--since", "2026-06-20T00:00:00.000Z"]);
+    expect(r.code).toBe(EXIT.OK);
+    expect(r.stdout.trim()).toBe("picked");
   });
 });

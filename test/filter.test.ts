@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { applyFilter, parseSince } from "../src/lib/filter";
+import { applyFilter, keepSession, parseSince } from "../src/lib/filter";
+import { AppError } from "../src/lib/errors";
 import { type SessionMeta, emptyUsage } from "../src/lib/types";
 
 function meta(over: Partial<SessionMeta>): SessionMeta {
@@ -49,6 +50,44 @@ describe("parseSince", () => {
 
   test("throws on an unparseable date so the CLI can exit 3", () => {
     expect(() => parseSince("not-a-date")).toThrow(/invalid --since/);
+  });
+
+  test("the thrown error carries exit code 3", () => {
+    let caught: unknown;
+    try {
+      parseSince("not-a-date");
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(AppError);
+    expect((caught as AppError).exitCode).toBe(3);
+  });
+
+  test("an empty --since is invalid, not unset", () => {
+    expect(() => parseSince("")).toThrow(/invalid --since/);
+  });
+});
+
+describe("keepSession", () => {
+  const at = (lastTs: string | null) => ({ cwd: "/r", entrypoint: "cli", lastTs });
+  const t = 1780272000000;
+
+  test("keeps a lastTs equal to since", () => {
+    expect(keepSession(at("2026-06-01T00:00:00.000Z"), {}, t)).toBe(true);
+  });
+
+  test("drops a lastTs one millisecond before since", () => {
+    expect(keepSession(at("2026-05-31T23:59:59.999Z"), {}, t)).toBe(false);
+  });
+
+  test("drops a null lastTs only when since is set", () => {
+    expect(keepSession(at(null), {}, t)).toBe(false);
+    expect(keepSession(at(null), {}, null)).toBe(true);
+  });
+
+  test("applies cwd and exclude rules", () => {
+    expect(keepSession(at(null), { cwd: "/other" }, null)).toBe(false);
+    expect(keepSession(at(null), { excludeEntrypoint: ["cli"] }, null)).toBe(false);
   });
 });
 
