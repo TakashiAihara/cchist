@@ -83,7 +83,7 @@ describe("table", () => {
 });
 
 describe("fmtTs", () => {
-  // the zone is read at process start, so each case runs in a child with its own TZ
+  // each case runs in a child with its own TZ so nothing leaks into other tests' clocks
   function inZone(tz: string, expr: string): string {
     const r = Bun.spawnSync(
       ["bun", "-e", `import { fmtTs } from "./src/lib/format"; console.log(${expr});`],

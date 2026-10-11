@@ -5,6 +5,8 @@ import { tmpdir } from "node:os";
 import { sessionsList } from "../src/commands/sessions";
 import { stats } from "../src/commands/stats";
 import { search } from "../src/commands/search";
+import { outline } from "../src/commands/outline";
+import { read } from "../src/commands/read";
 import { fmtTs } from "../src/lib/format";
 
 // Full 36-char uuid: the point of these tests is that it is never abbreviated
@@ -120,6 +122,18 @@ describe("timestamps carry their zone", () => {
     captureLog();
     search("needle", {});
     expect(lines.join("\n")).toContain(fmtTs("2026-08-10T01:02:03.000Z"));
+  });
+
+  test("outline lines", () => {
+    captureLog();
+    outline(ID, {});
+    expect(lines.join("\n")).toContain(fmtTs("2026-08-10T01:02:03.000Z"));
+  });
+
+  test("read headers include seconds", () => {
+    captureLog();
+    read(ID, [], {});
+    expect(lines.join("\n")).toContain(fmtTs("2026-08-10T01:02:03.000Z", true));
   });
 
   test("search --group lines", () => {
