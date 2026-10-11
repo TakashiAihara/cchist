@@ -77,6 +77,7 @@ cchist tools  [--since 2026-06-01] [--local]      # tool-call frequency
 cchist tools  --expand-skills                     # break Skill into Skill:<name>
 cchist bash   [--top 25] [--full]                 # most-used Bash commands
 cchist bash   <id|latest> [--top 25] [--full]     # one session's Bash commands
+cchist bash   --with-results [--since D]          # one JSON line per call with its result
 cchist bash   --full --json                       # keys are whole commands; the table shows 60 chars
 cchist files  [--top 30]                          # most-edited files
 cchist activity [--idle-gap 15]                    # active time (summed and wall clock) + hour histogram
