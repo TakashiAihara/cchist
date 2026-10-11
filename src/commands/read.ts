@@ -14,6 +14,7 @@ type Opts = {
   toolResults?: boolean;
   thinking?: boolean;
   truncate?: string;
+  focus?: string[];
 };
 
 /** Render one message to a string honoring the include flags. */
@@ -48,6 +49,12 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     }
     ranges.push(r);
   }
+  const focus: Range[] = [];
+  for (const a of opts.focus ?? []) {
+    const r = parseRange(a);
+    if (!r) throw invalidInput(`invalid --focus: ${a} (use m3, 3, m3..m7, 3..7 or m3.q1)`);
+    focus.push(r);
+  }
   const cut = opts.truncate === undefined ? null : intOption(opts.truncate, "--truncate", 0);
   // --json always carries tool result text, so only plain output can have nothing to cut
   if (cut !== null && !opts.json && !opts.tools && !opts.toolResults) {
@@ -67,9 +74,22 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
   }
 
   const all = messagesFromRecords(readRecords(file));
-  const selected = all.filter((m) => inAnyRange(m.index, ranges, m.queued));
+  const focused = (m: Msg) => focus.length > 0 && inAnyRange(m.index, focus, m.queued);
+  // each --focus must name a message: one that misses is a typo, not a no-op
+  const missed = focus.findIndex((r) => !all.some((m) => inAnyRange(m.index, [r], m.queued)));
+  if (missed >= 0) {
+    if (opts.json) json([]);
+    throw notFound(`no messages match --focus ${opts.focus![missed]}`);
+  }
+  // a focused message is read even when it lies outside the ranges
+  const selected = all.filter((m) => inAnyRange(m.index, ranges, m.queued) || focused(m));
 
   if (opts.json) {
+    // like search --json: print [] so a pipe still parses, then exit 2
+    if (!selected.length) {
+      json([]);
+      throw notFound("no messages in the given range(s)");
+    }
     return json(
       selected.map((m) => ({
         index: msgLabel(m),
@@ -89,6 +109,12 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     );
   }
 
+  if (!selected.length) throw notFound("no messages in the given range(s)");
+  if (focus.length) {
+    const blocks = selected.map((m) => renderMsg(m, opts, cut));
+    return printFocused(selected, blocks, focused, budget);
+  }
+
   let spent = 0;
   let shown = 0;
   for (const m of selected) {
@@ -103,5 +129,58 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     console.log((shown ? "\n" : "") + block);
     shown++;
   }
-  if (!shown) throw notFound("no messages in the given range(s)");
+}
+
+/**
+ * `--focus`: the focused messages are always printed, even past the budget, then
+ * the budget left over goes to their neighbours, nearest first; one that does not
+ * fit is skipped and the next nearest tried, so a large neighbour does not waste
+ * the rest. Output keeps file order, with a marker where the budget skipped messages.
+ */
+function printFocused(
+  msgs: Msg[],
+  blocks: string[],
+  focused: (m: Msg) => boolean,
+  budget: number,
+): void {
+  const keep = msgs.map(focused);
+  let spent = blocks.reduce((s, b, i) => s + (keep[i] ? approxTokens(b) : 0), 0);
+  if (spent > budget) {
+    console.error(`cchist: --focus alone is ~${spent} tokens, over the budget of ${budget}`);
+  }
+  // distance to the nearest focused message, in two sweeps
+  const dist = keep.map(() => Infinity);
+  for (let i = 0, d = Infinity; i < keep.length; i++) dist[i] = d = keep[i] ? 0 : d + 1;
+  for (let i = keep.length - 1, d = Infinity; i >= 0; i--) {
+    d = keep[i] ? 0 : d + 1;
+    dist[i] = Math.min(dist[i]!, d);
+  }
+  const order = blocks
+    .map((_, i) => i)
+    .filter((i) => !keep[i])
+    // sort is stable, so of two equally near the earlier comes first
+    .sort((a, b) => dist[a]! - dist[b]!);
+  for (const i of order) {
+    const cost = approxTokens(blocks[i]!);
+    if (spent + cost > budget) continue;
+    spent += cost;
+    keep[i] = true;
+  }
+  let skipped = 0;
+  let first = true;
+  const flush = () => {
+    if (!skipped) return;
+    console.log(
+      `${first ? "" : "\n"}… (${skipped} message${skipped > 1 ? "s" : ""} skipped by the budget — raise --budget or --no-budget)`,
+    );
+    first = false;
+    skipped = 0;
+  };
+  blocks.forEach((b, i) => {
+    if (!keep[i]) return void skipped++;
+    flush();
+    console.log((first ? "" : "\n") + b);
+    first = false;
+  });
+  flush();
 }

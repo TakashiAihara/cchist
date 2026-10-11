@@ -279,6 +279,12 @@ program
   .option("--tools", "include tool calls")
   .option("--tool-results", "include tool results")
   .option(
+    "--focus <range>",
+    "always print this range, even past the budget, then fill what is left with its neighbours (repeatable)",
+    collect,
+    [],
+  )
+  .option(
     "--truncate <n>",
     "cut each tool result and tool input to n chars, noting how many were dropped",
   )
