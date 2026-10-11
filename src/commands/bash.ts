@@ -12,6 +12,12 @@ export function firstWord(cmd: string): string {
   return parts[i] ?? "?";
 }
 
+/** Bucket key for a command: the leading word, or with --full the whole first line. */
+export function commandKey(cmd: string, full: boolean): string {
+  // No length cap: a cap here would also cut a surrogate pair in half and make --json unparseable
+  return full ? (cmd.trim().split("\n")[0] ?? "") : firstWord(cmd);
+}
+
 export function bash(opts: Opts): void {
   const counts = new Map<string, number>();
   for (const { recs } of iterFiltered(opts)) {
@@ -20,7 +26,7 @@ export function bash(opts: Opts): void {
       for (const b of r.message.content) {
         if (b?.type === "tool_use" && b.name === "Bash" && typeof b.input?.command === "string") {
           const cmd: string = b.input.command;
-          const key = opts.full ? (cmd.trim().split("\n")[0] ?? "").slice(0, 60) : firstWord(cmd);
+          const key = commandKey(cmd, opts.full ?? false);
           counts.set(key, (counts.get(key) ?? 0) + 1);
         }
       }

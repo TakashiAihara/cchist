@@ -19,10 +19,12 @@ export function fmtDuration(ms: number): string {
   return `${ss}s`;
 }
 
-/** Truncate a string to n chars with an ellipsis from the left or right. */
+/** Truncate a string to n code points with an ellipsis from the left or right. */
 export function trunc(s: string, n: number, from: "left" | "right" = "right"): string {
-  if (s.length <= n) return s;
-  return from === "left" ? "…" + s.slice(-(n - 1)) : s.slice(0, n - 1) + "…";
+  // Array.from splits into code points, so a cut through a surrogate pair keeps the whole emoji
+  const cps = Array.from(s);
+  if (cps.length <= n) return s;
+  return from === "left" ? "…" + cps.slice(-(n - 1)).join("") : cps.slice(0, n - 1).join("") + "…";
 }
 
 export function table(headers: string[], rows: string[][]): string {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { firstWord } from "../src/commands/bash";
+import { commandKey, firstWord } from "../src/commands/bash";
 
 describe("firstWord", () => {
   test("returns the leading command word", () => {
@@ -32,5 +32,39 @@ describe("firstWord", () => {
   // chained command is bucketed under its first token. Documented, not yet fixed.
   test("known noise: chained command buckets under the first token", () => {
     expect(firstWord("cd foo && git status")).toBe("cd");
+  });
+});
+
+describe("commandKey", () => {
+  test("full keeps a first line longer than 60 characters unchanged", () => {
+    const cmd =
+      "git log --oneline --since=2026-01-01 --until=2026-10-01 --author=TakashiAihara --all";
+    expect(cmd.length).toBeGreaterThan(80);
+    expect(commandKey(cmd, true)).toBe(
+      "git log --oneline --since=2026-01-01 --until=2026-10-01 --author=TakashiAihara --all",
+    );
+  });
+
+  test("full keeps an emoji that straddles the old 60 character cut intact", () => {
+    const cmd = "echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🌈 done";
+    // the emoji's high surrogate sits at unit 59, so a 60 unit cut would split the pair
+    expect(cmd.indexOf("🌈")).toBe(59);
+    expect(commandKey(cmd, true)).toBe(
+      "echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa🌈 done",
+    );
+  });
+
+  test("full returns only the first line of a multi-line command", () => {
+    expect(commandKey("cd src\nls -la\necho done", true)).toBe("cd src");
+  });
+
+  test("full trims surrounding whitespace before taking the first line", () => {
+    expect(commandKey("\n  bun test\n  bun run lint  \n", true)).toBe("bun test");
+  });
+
+  test("without full the key is the leading word", () => {
+    expect(commandKey("git log --oneline --since=2026-01-01 --until=2026-10-01", false)).toBe(
+      "git",
+    );
   });
 });
