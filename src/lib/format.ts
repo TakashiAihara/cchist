@@ -58,6 +58,20 @@ export function clipValues(v: unknown, n: number | null): unknown {
   return v;
 }
 
+/**
+ * `s` on one table row: line breaks (including U+2028/U+2029) become ⏎, tabs ⇥,
+ * and other control characters (C0, DEL, C1, escape sequences) and bidi
+ * overrides �, so a cell can neither break the row, reorder it, nor drive the terminal.
+ */
+export function oneLine(s: string): string {
+  return Array.from(s.replace(/\r\n|[\r\n\u2028\u2029]/g, "⏎").replaceAll("\t", "⇥"), (ch) => {
+    const c = ch.codePointAt(0)!;
+    const control = c < 0x20 || (c >= 0x7f && c <= 0x9f);
+    const bidi = (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069);
+    return control || bidi ? "�" : ch;
+  }).join("");
+}
+
 /** Truncate a string to n code points with an ellipsis from the left or right. */
 export function trunc(s: string, n: number, from: "left" | "right" = "right"): string {
   // a code point is at least one UTF-16 unit, so a string that short cannot exceed n

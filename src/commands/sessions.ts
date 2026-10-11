@@ -4,7 +4,7 @@ import { keepSession, loadAll, parseSince } from "../lib/filter";
 import { ownEvents } from "../lib/usage";
 import { withConfigExcludes } from "../lib/config";
 import { notFound } from "../lib/errors";
-import { table, fmtK, trunc, json, fmtTs } from "../lib/format";
+import { table, fmtK, trunc, json, fmtTs, oneLine } from "../lib/format";
 import { type CommonFilter, type SessionMeta, publicMeta } from "../lib/types";
 
 type ListOpts = CommonFilter & { limit?: string; json?: boolean; apiError?: boolean };
@@ -24,12 +24,12 @@ export function sessionsList(opts: ListOpts): void {
   const rows = metas.map((m) => [
     m.id,
     fmtTs(m.lastTs),
-    trunc(m.cwd ?? "-", 28, "left"),
+    trunc(oneLine(m.cwd ?? "-"), 28, "left"),
     String(m.userTurns),
     fmtK(output(m)),
     // the message names the limit or cause (session vs weekly limit, prompt too long)
-    ...(opts.apiError ? [trunc(m.apiError?.text ?? "-", 56)] : []),
-    trunc(m.title ?? m.lastPrompt ?? "-", 44),
+    ...(opts.apiError ? [trunc(oneLine(m.apiError?.text ?? "-"), 56)] : []),
+    trunc(oneLine(m.title ?? m.lastPrompt ?? "-"), 44),
   ]);
   out(
     table(

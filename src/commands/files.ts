@@ -1,5 +1,5 @@
 import { iterFiltered } from "../lib/records";
-import { table, fmtNum, trunc, json } from "../lib/format";
+import { table, fmtNum, trunc, json, oneLine } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
 type Opts = CommonFilter & { json?: boolean; top?: string };
@@ -27,7 +27,7 @@ export function files(opts: Opts): void {
   console.log(
     table(
       ["file", "edits"],
-      rows.map(([k, c]) => [trunc(k, 64, "left"), fmtNum(c)]),
+      rows.map(([k, c]) => [trunc(oneLine(k), 64, "left"), fmtNum(c)]),
     ),
   );
 }

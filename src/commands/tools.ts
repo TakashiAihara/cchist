@@ -1,5 +1,5 @@
 import { loadSessions } from "../lib/filter";
-import { table, fmtNum, json } from "../lib/format";
+import { table, fmtNum, json, oneLine } from "../lib/format";
 import { type CommonFilter, type SessionMeta } from "../lib/types";
 
 type ToolsOpts = CommonFilter & { json?: boolean; expandSkills?: boolean };
@@ -63,7 +63,7 @@ export function tools(opts: ToolsOpts): void {
 
   const total = rows.reduce((s, [, c]) => s + c, 0);
   const t = rows.map(([name, c]) => [
-    name,
+    oneLine(name),
     fmtNum(c),
     total ? ((c / total) * 100).toFixed(1) + "%" : "-",
   ]);

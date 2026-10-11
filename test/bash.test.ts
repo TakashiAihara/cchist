@@ -214,6 +214,21 @@ describe("bash <id>", () => {
     });
   }
 
+  test("the table shows a tab, a newline and an escape as symbols", async () => {
+    const p = join(root, "ctl.jsonl");
+    writeFileSync(p, session(["printf 'a\tb'\nls \u001b[0m"]));
+    const r = await cli(["bash", p, "--full"]);
+    expect(r.stdout).toContain("printf 'a⇥b'⏎ls �[0m");
+    expect(r.stdout).not.toContain("\u001b");
+  });
+
+  test("search --context must be a non-negative integer", async () => {
+    for (const bad of ["-1", "x", "1.5"]) {
+      expect((await cli(["search", "git", "--context", bad])).code).toBe(3);
+    }
+    expect((await cli(["search", "git", "--context", "0"])).code).not.toBe(3);
+  });
+
   test("an empty id exits 3 instead of counting every session", async () => {
     const r = await cli(["bash", "", "--json"]);
     expect(r.code).toBe(3);

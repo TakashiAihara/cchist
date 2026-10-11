@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { fmtNum, fmtK, fmtDuration, fmtTs, trunc, table } from "../src/lib/format";
+import { fmtNum, fmtK, fmtDuration, fmtTs, oneLine, trunc, table } from "../src/lib/format";
 
 describe("fmtNum", () => {
   test("groups thousands", () => {
@@ -121,5 +121,19 @@ describe("fmtTs", () => {
   test("absent or invalid timestamps render as -", () => {
     expect(fmtTs(null)).toBe("-");
     expect(fmtTs("nope")).toBe("-");
+  });
+});
+
+describe("oneLine", () => {
+  test("shows line breaks, tabs and other control characters as symbols", () => {
+    expect(oneLine("a\nb\r\nc\rd\te\u001b[31mf\u007f")).toBe("a⏎b⏎c⏎d⇥e�[31mf�");
+  });
+
+  test("leaves ordinary text alone", () => {
+    expect(oneLine("git status 🌈 日本語")).toBe("git status 🌈 日本語");
+  });
+
+  test("covers C1 controls, Unicode line separators and bidi overrides", () => {
+    expect(oneLine("a\u0085b\u009bc\u2028d\u2029e\u202ef\u2066g")).toBe("a�b�c⏎d⏎e�f�g");
   });
 });

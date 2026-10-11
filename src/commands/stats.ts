@@ -1,5 +1,5 @@
 import { loadAll, parseSince } from "../lib/filter";
-import { table, fmtK, trunc, json } from "../lib/format";
+import { table, fmtK, trunc, json, oneLine } from "../lib/format";
 import { type Owned, ownEvents } from "../lib/usage";
 import { type CommonFilter, type SessionMeta, addUsage, emptyUsage, localDay } from "../lib/types";
 
@@ -93,7 +93,7 @@ export function stats(opts: StatsOpts): void {
   const t = rows.map((g) => [
     // session ids are printed in full so they can be copy-pasted into other
     // subcommands; only the free-form keys (repo path, model list) get truncated.
-    by === "session" ? g.key : trunc(g.key, 30, by === "repo" ? "left" : "right"),
+    by === "session" ? g.key : trunc(oneLine(g.key), 30, by === "repo" ? "left" : "right"),
     String(g.sessions),
     String(g.turns),
     fmtK(g.input),
