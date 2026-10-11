@@ -108,9 +108,13 @@ describe("session ids are printed in full", () => {
 });
 
 describe("timestamps carry their zone", () => {
-  // the expected strings come from fmtTs so the case holds in any TZ; the old
-  // slice code printed "2026-08-10 01:02" with no offset and fails these
+  // the expected strings come from fmtTs so the case holds in any TZ; these pin the
+  // call sites (the old slice code there printed no offset), format.test pins fmtTs
   const at = fmtTs("2026-08-10T01:02:04.000Z");
+
+  test("the expected value has a date, a time and an offset", () => {
+    expect(at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}[+-]\d{2}:\d{2}$/);
+  });
 
   test("sessions list last column", () => {
     captureLog();
