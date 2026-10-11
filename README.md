@@ -184,6 +184,11 @@ counts on both days. `sessions list` shows the output a session owns the same wa
 - `--exclude-entrypoint <val>` — drop sessions with that `entrypoint`, e.g. `sdk-cli` (repeatable)
 - `--json` — machine-readable output (otherwise a human table)
 
+Human-readable times are local with their UTC offset (`2026-10-01 12:25+09:00`), and
+`stats --by day` / `activity` use the same local zone; set `TZ` to change it. `--json`
+keeps the timestamps as the JSONL records them (ISO, UTC `Z`). `--since` takes any ISO
+value: a bare date is local midnight, a date with a time and no offset is local time.
+
 `--exclude-cwd` globs are simple: `*` matches any run, `?` one char, everything
 else is literal.
 

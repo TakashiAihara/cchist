@@ -4,7 +4,7 @@ import { keepSession, loadAll, parseSince } from "../lib/filter";
 import { ownEvents } from "../lib/usage";
 import { withConfigExcludes } from "../lib/config";
 import { notFound } from "../lib/errors";
-import { table, fmtK, trunc, json } from "../lib/format";
+import { table, fmtK, trunc, json, fmtTs } from "../lib/format";
 import { type CommonFilter, type SessionMeta, publicMeta } from "../lib/types";
 
 type ListOpts = CommonFilter & { limit?: string; json?: boolean };
@@ -22,7 +22,7 @@ export function sessionsList(opts: ListOpts): void {
     (owned.get(m)?.calls ?? []).reduce((s, c) => s + c.usage.output, 0);
   const rows = metas.map((m) => [
     m.id,
-    m.lastTs?.replace("T", " ").slice(0, 16) ?? "-",
+    fmtTs(m.lastTs),
     trunc(m.cwd ?? "-", 28, "left"),
     String(m.userTurns),
     fmtK(output(m)),

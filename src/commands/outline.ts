@@ -2,7 +2,7 @@ import { readRecords } from "../lib/records";
 import { resolveSessionFile } from "../lib/discover";
 import { notFound } from "../lib/errors";
 import { messagesFromRecords, msgSummary, approxTokens, type Msg } from "../lib/messages";
-import { json } from "../lib/format";
+import { json, fmtTs } from "../lib/format";
 
 // commander maps --no-budget to budget === false; --budget <n> gives a string
 type Opts = { json?: boolean; budget?: string | boolean };
@@ -31,7 +31,7 @@ export function outline(idOrLatest: string, opts: Opts): void {
   const budget = opts.budget === false ? Infinity : parseInt(String(opts.budget ?? "6000"), 10);
   let spent = 0;
   for (const m of msgs) {
-    const ts = m.ts ? m.ts.replace("T", " ").slice(0, 16) : "-";
+    const ts = fmtTs(m.ts);
     const line = `m${m.index}\t${ROLE_MARK[m.role]} ${m.role}\t${ts}\t${msgSummary(m)}`;
     spent += approxTokens(line);
     if (spent > budget) {

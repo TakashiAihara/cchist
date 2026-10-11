@@ -5,6 +5,9 @@ import { tmpdir } from "node:os";
 import { sessionsList } from "../src/commands/sessions";
 import { stats } from "../src/commands/stats";
 import { search } from "../src/commands/search";
+import { outline } from "../src/commands/outline";
+import { read } from "../src/commands/read";
+import { fmtTs } from "../src/lib/format";
 
 // Full 36-char uuid: the point of these tests is that it is never abbreviated
 // in human-readable output (it has to be copy-pasteable into `read`/`outline`).
@@ -101,6 +104,46 @@ describe("session ids are printed in full", () => {
     captureLog();
     search("needle", { group: true });
     expect(lines.join("\n")).toContain(ID);
+  });
+});
+
+describe("timestamps carry their zone", () => {
+  // the expected strings come from fmtTs so the case holds in any TZ; these pin the
+  // call sites (the old slice code there printed no offset), format.test pins fmtTs
+  const at = fmtTs("2026-08-10T01:02:04.000Z");
+
+  test("the expected value has a date, a time and an offset", () => {
+    expect(at).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}[+-]\d{2}:\d{2}$/);
+  });
+
+  test("sessions list last column", () => {
+    captureLog();
+    sessionsList({});
+    expect(lines.join("\n")).toContain(at);
+  });
+
+  test("search table when column", () => {
+    captureLog();
+    search("needle", {});
+    expect(lines.join("\n")).toContain(fmtTs("2026-08-10T01:02:03.000Z"));
+  });
+
+  test("outline lines", () => {
+    captureLog();
+    outline(ID, {});
+    expect(lines.join("\n")).toContain(fmtTs("2026-08-10T01:02:03.000Z"));
+  });
+
+  test("read headers include seconds", () => {
+    captureLog();
+    read(ID, [], {});
+    expect(lines.join("\n")).toContain(fmtTs("2026-08-10T01:02:03.000Z", true));
+  });
+
+  test("search --group lines", () => {
+    captureLog();
+    search("needle", { group: true });
+    expect(lines.join("\n")).toContain(fmtTs("2026-08-10T01:02:03.000Z"));
   });
 });
 
