@@ -45,7 +45,8 @@ describe("tokenCounts", () => {
   });
 
   test("a zeroed top level sums the iterations; the prompt is the largest one's", () => {
-    expect(tokenCounts({ ...zero, iterations: [it(10), it(1)] })).toEqual(counts(11, 80));
+    // the largest iteration last, so taking the first one's prompt would fail
+    expect(tokenCounts({ ...zero, iterations: [it(1), it(10)] })).toEqual(counts(11, 80));
   });
 
   test("a zeroed top level without iterations stays zero", () => {
@@ -88,10 +89,24 @@ describe("context reads the iterations too", () => {
   test("the turn's size is one iteration's prompt, not their sum", () => {
     const line = JSON.stringify({
       type: "assistant",
-      message: { usage: { ...zero, iterations: [it(100), it(50)] } },
+      message: { usage: { ...zero, iterations: [it(50), it(100)] } },
     });
     const [t] = contextReport([line]).turns;
     expect([t!.context, t!.cache]).toEqual([800, { read: 450, write5m: 150, write1h: 450 }]);
+  });
+
+  test("a call written as two lines counts once, at its fuller line; 5m fills what 1h leaves", () => {
+    const rec = (usage: unknown) =>
+      JSON.stringify({ type: "assistant", requestId: "r", message: { id: "m", usage } });
+    const full = {
+      ...zero,
+      cache_creation_input_tokens: 100,
+      cache_creation: { ephemeral_5m_input_tokens: 90, ephemeral_1h_input_tokens: 60 },
+    };
+    // the fuller line first, so last-line-wins would lose it
+    const [t] = contextReport([rec(full), rec(zero)]).turns;
+    // 1h is 60 of the 100 written, so 5m is the 40 left, not the 90 recorded
+    expect(t!.cache).toEqual({ read: 0, write5m: 40, write1h: 60 });
   });
 
   test("a fallback call's 1h split from the refused attempt is capped at the write", () => {

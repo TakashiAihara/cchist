@@ -131,8 +131,9 @@ export function parseSession(file: string): SessionMeta {
     meta.durationMs = Date.parse(meta.lastTs) - Date.parse(meta.firstTs);
   }
   for (const c of meta.events.calls) {
-    // a streamed partial line can give the 1h split with 0 at the top level; after the
-    // lines of a call are merged, the 1h part cannot exceed the write it is part of
+    // a streamed partial line, and a fallback call (whose split is the refused
+    // attempt's), can give a 1h split with 0 at the top level; after the lines of a
+    // call are merged, the 1h part cannot exceed the write it is part of
     c.usage.cacheCreate1h = Math.min(c.usage.cacheCreate1h, c.usage.cacheCreate);
     addUsage(meta.usage, c.usage);
   }
