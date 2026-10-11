@@ -131,3 +131,72 @@ describe("bash --full --json (CLI)", () => {
     });
   });
 });
+
+describe("bash <id>", () => {
+  let root: string;
+
+  const session = (cmds: string[]) =>
+    JSON.stringify({
+      type: "assistant",
+      timestamp: "2026-06-01T00:00:00Z",
+      cwd: "/repo/b",
+      message: {
+        content: cmds.map((command) => ({ type: "tool_use", name: "Bash", input: { command } })),
+      },
+    }) + "\n";
+
+  async function cli(args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
+    const proc = Bun.spawn(["bun", "run", "src/index.ts", ...args], {
+      cwd: join(import.meta.dir, ".."),
+      env: { ...process.env, CCHIST_PROJECTS_DIR: root, CCHIST_CONFIG: join(root, "none.json") },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
+    return { code: await proc.exited, stdout, stderr };
+  }
+
+  beforeAll(() => {
+    root = mkdtempSync(join(tmpdir(), "cchist-bash-id-"));
+    mkdirSync(join(root, "-repo-b"));
+    writeFileSync(
+      join(root, "-repo-b", "aaaa-1.jsonl"),
+      session(["ls -la", "git status", "git log"]),
+    );
+    writeFileSync(join(root, "-repo-b", "bbbb-2.jsonl"), session(["npm test"]));
+  });
+
+  afterAll(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  test("counts only the named session", async () => {
+    const r = await cli(["bash", "aaaa", "--json"]);
+    expect(r.code).toBe(0);
+    expect(JSON.parse(r.stdout)).toEqual({ git: 2, ls: 1 });
+  });
+
+  test("without an id every session is counted", async () => {
+    const r = await cli(["bash", "--json"]);
+    expect(JSON.parse(r.stdout)).toEqual({ git: 2, ls: 1, npm: 1 });
+  });
+
+  test("--full keys a single session by whole commands", async () => {
+    const r = await cli(["bash", "aaaa", "--full", "--json"]);
+    expect(JSON.parse(r.stdout)).toEqual({ "ls -la": 1, "git status": 1, "git log": 1 });
+  });
+
+  test("an unknown id exits 2", async () => {
+    const r = await cli(["bash", "nope-id"]);
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain("cchist: session not found");
+  });
+
+  test("an invalid --since is still rejected with exit 3", async () => {
+    const r = await cli(["bash", "aaaa", "--since", "not-a-date"]);
+    expect(r.code).toBe(3);
+  });
+});

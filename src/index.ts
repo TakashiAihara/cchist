@@ -122,6 +122,7 @@ addExclude(
   program
     .command("bash")
     .description("most-used Bash commands (leading word; --full for the whole command)")
+    .argument("[id]", "count one session: id (prefix ok), 'latest', or a path to a .jsonl")
     .option("--top <n>", "max rows", "25")
     .option(
       "--full",

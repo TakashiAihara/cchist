@@ -75,6 +75,7 @@ cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage
 cchist tools  [--since 2026-06-01] [--local]      # tool-call frequency
 cchist tools  --expand-skills                     # break Skill into Skill:<name>
 cchist bash   [--top 25] [--full]                 # most-used Bash commands
+cchist bash   <id> [--full] [--json]              # one session's Bash commands
 cchist bash   --full --json                       # keys are whole commands; the table shows 60 chars
 cchist files  [--top 30]                          # most-edited files
 cchist activity                                    # active time + hour histogram

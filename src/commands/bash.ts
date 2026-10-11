@@ -1,4 +1,7 @@
-import { iterFiltered } from "../lib/records";
+import { iterFiltered, readRecords } from "../lib/records";
+import { resolveSessionFile } from "../lib/discover";
+import { notFound } from "../lib/errors";
+import { parseSince } from "../lib/filter";
 import { table, fmtNum, trunc, json } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
@@ -18,9 +21,9 @@ export function commandKey(cmd: string, full: boolean): string {
   return full ? cmd.trim() : firstWord(cmd);
 }
 
-export function bash(opts: Opts): void {
+export function bash(id: string | undefined, opts: Opts): void {
   const counts = new Map<string, number>();
-  for (const { recs } of iterFiltered(opts)) {
+  for (const { recs } of sources(id, opts)) {
     for (const r of recs) {
       if (r.type !== "assistant" || !Array.isArray(r.message?.content)) continue;
       for (const b of r.message.content) {
@@ -49,4 +52,13 @@ export function bash(opts: Opts): void {
       ]),
     ),
   );
+}
+
+/** One named session (filters validated but not applied, as search --session does), or every filtered one. */
+function sources(id: string | undefined, opts: Opts): Iterable<{ recs: any[] }> {
+  if (!id) return iterFiltered(opts);
+  parseSince(opts.since);
+  const file = resolveSessionFile(id);
+  if (!file) throw notFound(`session not found: ${id}`);
+  return [{ recs: readRecords(file) }];
 }
