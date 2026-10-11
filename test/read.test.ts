@@ -65,6 +65,15 @@ describe("read --truncate", () => {
           timestamp: "2026-06-01T00:00:01Z",
           message: { content: [{ type: "tool_result", content: "r".repeat(30) + "TAIL" }] },
         },
+        {
+          type: "user",
+          timestamp: "2026-06-01T00:00:02Z",
+          message: {
+            content: [
+              { type: "tool_result", is_error: true, content: "x".repeat(20) + "Error: boom" },
+            ],
+          },
+        },
       ]
         .map((r) => JSON.stringify(r))
         .join("\n") + "\n",
@@ -100,6 +109,15 @@ describe("read --truncate", () => {
     expect(rows[0].text).toBe("p".repeat(20));
     expect(rows[1].text).toBe("rrrrrrrrrr… (+24 chars)");
     expect(rows[1].truncated).toBe(24);
+  });
+
+  test("a failed tool result says so in its header even when the error text is cut away", async () => {
+    const r = await cli(["read", file(), "--tool-results", "--truncate", "10"]);
+    expect(r.stdout).toContain("── m2 user (tool error)");
+    expect(r.stdout).not.toContain("Error: boom");
+    expect(r.stdout).toContain("── m1 user 2026");
+    const rows = JSON.parse((await cli(["read", file(), "--json"])).stdout);
+    expect(rows.map((x: any) => x.isError)).toEqual([false, false, true]);
   });
 
   test("without --tools or --tool-results it warns that nothing is cut", async () => {

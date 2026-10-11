@@ -18,7 +18,8 @@ type Opts = {
 /** Render one message to a string honoring the include flags. */
 function renderMsg(m: Msg, opts: Opts, cut: number | null): string {
   const ts = m.ts ? ` ${fmtTs(m.ts, true)}` : "";
-  const head = `── ${msgLabel(m)} ${m.role}${m.queued != null ? " (queued)" : ""}${ts} ──`;
+  const tag = m.queued != null ? " (queued)" : m.isError ? " (tool error)" : "";
+  const head = `── ${msgLabel(m)} ${m.role}${tag}${ts} ──`;
   const parts: string[] = [head];
 
   if (m.isToolResult) {
@@ -78,6 +79,7 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
           ? { tools: m.tools.map((t) => ({ name: t.name, input: clipValues(t.input, cut) })) }
           : {}),
         isToolResult: m.isToolResult,
+        isError: m.isError,
         queued: m.queued != null,
       })),
     );
