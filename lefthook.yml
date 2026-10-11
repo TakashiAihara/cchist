@@ -1,6 +1,7 @@
 # Pre-commit guard for cchist. Runs the same tools as CI's lint / format /
-# typecheck steps on the staged files, so a bad commit is rejected locally
-# before reaching CI. Tests stay in CI to keep the commit hook to the fast checks.
+# typecheck steps (format and lint on the staged files, typecheck on the whole
+# project), so a bad commit is rejected locally before reaching CI. Tests stay in
+# CI to keep the commit hook to the fast checks.
 #
 # Install: handled automatically by `bun install` via package.json `prepare`.
 # Bypass (rare, e.g. emergency revert): `git commit --no-verify`. Each job's
