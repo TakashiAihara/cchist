@@ -155,9 +155,10 @@ Claude Code writes one API response as several lines (one per content block), ea
 repeating the same usage. Usage is counted once per call, keyed by message id and
 request id. A resumed session copies earlier records into its own file; copied
 calls, prompts (by record uuid) and tool calls (by tool_use id) are counted once
-too, under the file that started first (then the least recently modified one): a
-copy begins when it is made, after its original, while the original may keep
-running. That is decided over every session before the filters run, so `--cwd` or
+too, under the file that started first (then the least recently modified one). A
+copy of the whole history ties on its start, and the fallback can then credit the
+copy when the original kept running; totals are right either way. That is decided
+over every session before the filters run, so `--cwd` or
 `--exclude-*` never moves a copy's numbers.
 
 `--since` keeps the sessions active since the date and then counts only the events

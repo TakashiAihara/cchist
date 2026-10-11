@@ -82,6 +82,11 @@ describe("parseSince", () => {
     expect(() => parseSince("2026-02-30")).toThrow(/invalid --since/);
   });
 
+  test("month 13 and month 00 are typos too", () => {
+    expect(() => parseSince("2026-13-01")).toThrow(/invalid --since/);
+    expect(() => parseSince("2026-00-10")).toThrow(/invalid --since/);
+  });
+
   test("an empty --since is invalid, not unset", () => {
     expect(() => parseSince("")).toThrow(/invalid --since/);
   });

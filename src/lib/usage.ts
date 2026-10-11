@@ -8,9 +8,11 @@ export type Owned = { calls: Call[]; turns: Event[]; tools: Event[] };
  * A resumed or forked session copies earlier records into its own file, rewriting
  * their sessionId, so nothing inside a record names the session that made it.
  * A keyed event is credited to the file that started earliest (first record time),
- * then least recently modified: a copy starts when it is made, after its original.
- * File mtime alone is not enough, since an original often keeps running after a
- * fork. Ownership is decided over `all` sessions before any filter, so `--since` or
+ * then the least recently modified one. A copy of part of a session starts later
+ * than its original, so the first rule settles it; a copy of the whole history
+ * keeps the original timestamps and ties, and the mtime fallback can then pick the
+ * copy when the original kept running (a known limit). Ownership is decided over
+ * `all` sessions before any filter, so `--since` or
  * `--cwd` cannot move a call into a copy. When copies of a call disagree, each usage
  * field takes the larger value.
  */

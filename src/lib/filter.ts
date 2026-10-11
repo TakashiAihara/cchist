@@ -15,8 +15,8 @@ export function parseSince(since: string | undefined): number | null {
   const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(since);
   const local = day && new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]));
   // a rolled-over date (2026-02-30 → March 2) is a typo, not a day
-  const real =
-    local && local.getDate() === Number(day[3]) && local.getMonth() === Number(day[2]) - 1;
+  // any day or month overflow (02-30, 13-01, 00-10) lands in another month
+  const real = local && local.getMonth() === Number(day[2]) - 1;
   const t = day ? (real ? local.getTime() : NaN) : Date.parse(since);
   if (Number.isNaN(t)) {
     throw invalidInput(`invalid --since: ${since} (use an ISO date, e.g. 2026-06-01)`);
