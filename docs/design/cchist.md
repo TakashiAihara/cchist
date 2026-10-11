@@ -51,7 +51,7 @@ cchist bash   [--top N] [--full] [--since D] [--local] [--json]   # Bash コマ�
 cchist files  [--top N] [--since D] [--local] [--json]            # 編集ファイルランキング
 cchist activity [--since D] [--local] [--json]                    # active 時間 + 時間帯ヒストグラム
 cchist commands [--top N] [--skills-only] [--source slash|tool|all] [--since D] [--local] [--json]   # slash command / Skill tool 利用頻度
-cchist search <q> [--regex] [--case] [--role R] [--thinking] [--context N] [--limit N] [--session ID] [--group] [--hits-per N] [filters] [--json]
+cchist search <q> [--regex] [--case] [--role R] [--thinking] [--context N] [--limit N] [--session ID | filters] [--group] [--hits-per N] [--json]
 cchist completion <bash|zsh|fish>
 ```
 
@@ -140,7 +140,8 @@ throw する規約。`process.exit` は `src/index.ts` の top-level catch (
   範囲指定で選択メッセージ 0 件 / `sessions latest` で対象なし / `path` で cwd
   記録なし)
 - `3 INVALID_INPUT` (range syntax / `--source` / `completion <shell>` の choice
-  値違反)
+  値違反 / 不正な `--since` / 空の session id / 名指しセッション (`bash <id>`・`search
+  --session`) と共通フィルタの併用)
 
 convenience は `notFound(msg)` / `invalidInput(msg)` で AppError を構築する。
 

@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { commandKey, firstWord } from "../src/commands/bash";
@@ -167,6 +167,9 @@ describe("bash <id>", () => {
       session(["ls -la", "git status", "git log"]),
     );
     writeFileSync(join(root, "-repo-b", "bbbb-2.jsonl"), session(["npm test"]));
+    // latest is the newest mtime, so pin it rather than trusting write order
+    utimesSync(join(root, "-repo-b", "aaaa-1.jsonl"), 1_780_000_000, 1_780_000_000);
+    utimesSync(join(root, "-repo-b", "bbbb-2.jsonl"), 1_780_100_000, 1_780_100_000);
   });
 
   afterAll(() => {
@@ -220,6 +223,12 @@ describe("bash <id>", () => {
   test("a .jsonl path and latest name a session too", async () => {
     const byPath = await cli(["bash", join(root, "-repo-b", "bbbb-2.jsonl"), "--json"]);
     expect(JSON.parse(byPath.stdout)).toEqual({ npm: 1 });
-    expect((await cli(["bash", "latest", "--json"])).code).toBe(0);
+    expect(JSON.parse((await cli(["bash", "latest", "--json"])).stdout)).toEqual({ npm: 1 });
+  });
+
+  test("search --session with an empty id exits 3 instead of searching everything", async () => {
+    const r = await cli(["search", "git", "--session", ""]);
+    expect(r.code).toBe(3);
+    expect(r.stdout).toBe("");
   });
 });

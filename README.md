@@ -96,8 +96,8 @@ pasted straight into another subcommand. Nothing abbreviates them to a prefix.
 
 Anywhere an `<id>` is taken (`show`, `path`, `outline`, `read`, `bash <id>`,
 `search --session`) a unique prefix works too, and the literal `latest` is the most
-recently modified session file. `latest` there is a plain lookup — the common
-filters are not consulted. To pick the newest session in a given scope, resolve
+recently modified session file. `latest` there is a plain lookup — `show` / `path`
+/ `outline` / `read` take no filters at all. To pick the newest session in a given scope, resolve
 it first: `cchist show "$(cchist sessions latest --local)"`. `bash <id>` and
 `search --session` reject the common filters (`--local` / `--cwd` / `--since` /
 `--exclude-*`) with exit 3 instead of ignoring them, since a named session is not
@@ -113,7 +113,8 @@ Substring by default (case-insensitive); add `--regex` for a regular expression
 and `--case` for case-sensitive matching. Scopes to user prompts and assistant
 text; `--role user|assistant|all` narrows it and `--thinking` also scans
 assistant thinking blocks. `--context <n>` sets the excerpt width and `--limit
-<n>` caps the hit count. `--session <id>` searches within a single session, and
+<n>` caps the hit count. `--session <id>` searches within a single session (the
+common filters are rejected with it, exit 3), and
 `--group` groups hits by session (most hits first, `--hits-per <n>` excerpts
 each). Tool calls are intentionally out of scope — use `bash` / `files` for those.
 
@@ -231,7 +232,7 @@ kind:
 | 0    | `OK`           | success (including aggregation commands that return zero rows — see below) |
 | 1    | `ERROR`        | unexpected / generic failure |
 | 2    | `NOT_FOUND`    | requested **target** absent — session id doesn't match, `sessions latest` finds nothing, **`search` produces zero matches**, `read` ranges select no messages, `path` has no recorded cwd |
-| 3    | `INVALID_INPUT`| user input malformed — bad message range, unsupported `--source` / shell value, unparseable `--since` date |
+| 3    | `INVALID_INPUT`| user input malformed — bad message range, unsupported `--source` / shell value, unparseable `--since` date, an empty session id, or a common filter combined with a named session (`bash <id>`, `search --session`) |
 
 #### "Zero results" is not always NOT_FOUND
 
