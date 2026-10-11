@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
 import { fmtNum, fmtK, fmtDuration, fmtTs, trunc, table } from "../src/lib/format";
 
 describe("fmtNum", () => {
@@ -82,16 +83,39 @@ describe("table", () => {
 });
 
 describe("fmtTs", () => {
-  test("renders UTC to the minute with a Z", () => {
-    expect(fmtTs("2026-10-01T03:25:59.123Z")).toBe("2026-10-01 03:25Z");
+  // the zone is read at process start, so each case runs in a child with its own TZ
+  function inZone(tz: string, expr: string): string {
+    const r = Bun.spawnSync(
+      ["bun", "-e", `import { fmtTs } from "./src/lib/format"; console.log(${expr});`],
+      { cwd: join(import.meta.dir, ".."), env: { ...process.env, TZ: tz } },
+    );
+    return r.stdout.toString().trim();
+  }
+
+  test("renders local time to the minute with the offset", () => {
+    expect(inZone("Asia/Tokyo", 'fmtTs("2026-10-01T03:25:59.123Z")')).toBe(
+      "2026-10-01 12:25+09:00",
+    );
   });
 
-  test("normalizes an offset timestamp to UTC", () => {
-    expect(fmtTs("2026-10-01T12:25:00+09:00")).toBe("2026-10-01 03:25Z");
+  test("UTC gets +00:00", () => {
+    expect(inZone("UTC", 'fmtTs("2026-10-01T03:25:59.123Z")')).toBe("2026-10-01 03:25+00:00");
+  });
+
+  test("a negative half-hour offset crosses back a day", () => {
+    expect(inZone("America/St_Johns", 'fmtTs("2026-10-01T01:00:00Z")')).toBe(
+      "2026-09-30 22:30-02:30",
+    );
+  });
+
+  test("an input offset is converted to the local zone", () => {
+    expect(inZone("UTC", 'fmtTs("2026-10-01T12:25:00+09:00")')).toBe("2026-10-01 03:25+00:00");
   });
 
   test("includes seconds when asked", () => {
-    expect(fmtTs("2026-10-01T03:25:59.123Z", true)).toBe("2026-10-01 03:25:59Z");
+    expect(inZone("Asia/Tokyo", 'fmtTs("2026-10-01T03:25:59.123Z", true)')).toBe(
+      "2026-10-01 12:25:59+09:00",
+    );
   });
 
   test("absent or invalid timestamps render as -", () => {

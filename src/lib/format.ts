@@ -20,18 +20,19 @@ export function fmtDuration(ms: number): string {
 }
 
 /**
- * A record timestamp as `YYYY-MM-DD HH:MMZ` (UTC, minutes; seconds with `seconds`).
- * The Z keeps the zone visible next to logs and shell history in other zones.
+ * A record timestamp in local time with its UTC offset, e.g. `2026-10-01 12:25+09:00`
+ * (seconds with `seconds`). Local, like `stats --by day` and `activity`, so one
+ * convention runs through the CLI; the offset lets it be matched against UTC logs.
+ * Set TZ to choose the zone.
  */
 export function fmtTs(ts: string | null | undefined, seconds = false): string {
   const d = ts ? new Date(ts) : null;
   if (!d || Number.isNaN(d.getTime())) return "-";
-  return (
-    d
-      .toISOString()
-      .replace("T", " ")
-      .slice(0, seconds ? 19 : 16) + "Z"
-  );
+  const p = (n: number) => String(n).padStart(2, "0");
+  const off = -d.getTimezoneOffset();
+  const zone = `${off < 0 ? "-" : "+"}${p(Math.floor(Math.abs(off) / 60))}:${p(Math.abs(off) % 60)}`;
+  const time = `${p(d.getHours())}:${p(d.getMinutes())}${seconds ? `:${p(d.getSeconds())}` : ""}`;
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${time}${zone}`;
 }
 
 /** Truncate a string to n code points with an ellipsis from the left or right. */

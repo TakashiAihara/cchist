@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { sessionsList } from "../src/commands/sessions";
 import { stats } from "../src/commands/stats";
 import { search } from "../src/commands/search";
+import { fmtTs } from "../src/lib/format";
 
 // Full 36-char uuid: the point of these tests is that it is never abbreviated
 // in human-readable output (it has to be copy-pasteable into `read`/`outline`).
@@ -101,6 +102,30 @@ describe("session ids are printed in full", () => {
     captureLog();
     search("needle", { group: true });
     expect(lines.join("\n")).toContain(ID);
+  });
+});
+
+describe("timestamps carry their zone", () => {
+  // the expected strings come from fmtTs so the case holds in any TZ; the old
+  // slice code printed "2026-08-10 01:02" with no offset and fails these
+  const at = fmtTs("2026-08-10T01:02:04.000Z");
+
+  test("sessions list last column", () => {
+    captureLog();
+    sessionsList({});
+    expect(lines.join("\n")).toContain(at);
+  });
+
+  test("search table when column", () => {
+    captureLog();
+    search("needle", {});
+    expect(lines.join("\n")).toContain(fmtTs("2026-08-10T01:02:03.000Z"));
+  });
+
+  test("search --group lines", () => {
+    captureLog();
+    search("needle", { group: true });
+    expect(lines.join("\n")).toContain(fmtTs("2026-08-10T01:02:03.000Z"));
   });
 });
 
