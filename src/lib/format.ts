@@ -19,10 +19,14 @@ export function fmtDuration(ms: number): string {
   return `${ss}s`;
 }
 
-/** Truncate a string to n chars with an ellipsis from the left or right. */
+/** Truncate a string to n code points with an ellipsis from the left or right. */
 export function trunc(s: string, n: number, from: "left" | "right" = "right"): string {
+  // a code point is at least one UTF-16 unit, so a string that short cannot exceed n
   if (s.length <= n) return s;
-  return from === "left" ? "…" + s.slice(-(n - 1)) : s.slice(0, n - 1) + "…";
+  // code points, so the cut never splits a surrogate pair (ZWJ sequences still split; accepted)
+  const cps = Array.from(s);
+  if (cps.length <= n) return s;
+  return from === "left" ? "…" + cps.slice(-(n - 1)).join("") : cps.slice(0, n - 1).join("") + "…";
 }
 
 export function table(headers: string[], rows: string[][]): string {

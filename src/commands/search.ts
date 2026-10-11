@@ -85,10 +85,16 @@ export function recordTexts(
   return out;
 }
 
+const isHigh = (unit: number): boolean => unit >= 0xd800 && unit <= 0xdbff;
+const isLow = (unit: number): boolean => unit >= 0xdc00 && unit <= 0xdfff;
+
 /** One-line excerpt around the match index, with ellipses for trimmed edges. */
 export function excerpt(text: string, idx: number, ctx: number): string {
-  const start = Math.max(0, idx - ctx);
-  const end = Math.min(text.length, idx + ctx);
+  let start = Math.max(0, idx - ctx);
+  let end = Math.min(text.length, idx + ctx);
+  // widen the window to whole code points so neither cut lands inside a surrogate pair
+  if (start > 0 && isLow(text.charCodeAt(start)) && isHigh(text.charCodeAt(start - 1))) start--;
+  if (end < text.length && isHigh(text.charCodeAt(end - 1)) && isLow(text.charCodeAt(end))) end++;
   let s = text.slice(start, end).replace(/\s+/g, " ").trim();
   if (start > 0) s = "…" + s;
   if (end < text.length) s = s + "…";

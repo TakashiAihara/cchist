@@ -94,6 +94,9 @@ describe("recordTexts", () => {
 });
 
 describe("excerpt", () => {
+  // A high surrogate not followed by a low one, or the reverse, i.e. half an emoji
+  const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
   test("collapses whitespace and trims around the match", () => {
     const text = "the quick   brown\nfox jumps over the lazy dog";
     const idx = text.indexOf("fox");
@@ -106,6 +109,20 @@ describe("excerpt", () => {
 
   test("no trailing ellipsis when context covers the end", () => {
     expect(excerpt("hello world", 6, 50)).toBe("hello world");
+  });
+
+  test("a leading cut inside an emoji widens to keep the whole pair", () => {
+    // the window would start on the low surrogate of 🌈 at unit 5
+    const cut = excerpt("say 🌈 now", 7, 2);
+    expect(cut).toBe("…🌈 no…");
+    expect(LONE_SURROGATE.test(cut)).toBe(false);
+  });
+
+  test("a trailing cut inside an emoji widens to keep the whole pair", () => {
+    // the window would end between the surrogates of 🌈 at units 6 and 7
+    const cut = excerpt("abcdef🌈", 5, 2);
+    expect(cut).toBe("…def🌈");
+    expect(LONE_SURROGATE.test(cut)).toBe(false);
   });
 });
 

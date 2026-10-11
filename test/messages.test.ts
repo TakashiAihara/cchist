@@ -63,6 +63,8 @@ describe("approxTokens", () => {
 });
 
 describe("msgSummary", () => {
+  // A high surrogate not followed by a low one, or the reverse, i.e. half an emoji
+  const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
   const msgs = messagesFromRecords(recs);
 
   test("uses text when present, collapsing whitespace", () => {
@@ -88,5 +90,15 @@ describe("msgSummary", () => {
       { type: "user", message: { role: "user", content: "x".repeat(200) } },
     ])[0]!;
     expect(msgSummary(long, 10)).toBe("xxxxxxxxx…");
+  });
+
+  test("a cut landing on an emoji keeps both halves of the pair", () => {
+    const emoji = messagesFromRecords([
+      { type: "user", message: { role: "user", content: "abcde🌈fgh" } },
+    ])[0]!;
+    // a 7-unit cut would land between the surrogates of 🌈 at units 5 and 6
+    const cut = msgSummary(emoji, 7);
+    expect(cut).toBe("abcde🌈…");
+    expect(LONE_SURROGATE.test(cut)).toBe(false);
   });
 });

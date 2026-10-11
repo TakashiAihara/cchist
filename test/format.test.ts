@@ -30,6 +30,9 @@ describe("fmtDuration", () => {
 });
 
 describe("trunc", () => {
+  // A high surrogate not followed by a low one, or the reverse, i.e. half an emoji
+  const LONE_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
   test("leaves short strings untouched", () => {
     expect(trunc("hello", 10)).toBe("hello");
   });
@@ -40,6 +43,23 @@ describe("trunc", () => {
 
   test("truncates from the left when asked", () => {
     expect(trunc("abcdefgh", 5, "left")).toBe("…efgh");
+  });
+
+  test("a right cut landing on an emoji keeps both halves of the pair", () => {
+    const cut = trunc("ab🌈cd", 4);
+    expect(cut).toBe("ab🌈…");
+    expect(LONE_SURROGATE.test(cut)).toBe(false);
+  });
+
+  test("a left cut landing on an emoji keeps both halves of the pair", () => {
+    const cut = trunc("ab🌈cd", 4, "left");
+    expect(cut).toBe("…🌈cd");
+    expect(LONE_SURROGATE.test(cut)).toBe(false);
+  });
+
+  test("a string that fits by code points is left untouched", () => {
+    expect(trunc("ab🌈cd", 5)).toBe("ab🌈cd");
+    expect(trunc("ab🌈cd", 5, "left")).toBe("ab🌈cd");
   });
 });
 
