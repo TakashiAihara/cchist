@@ -1,0 +1,39 @@
+# Pre-commit guard for cchist. Runs the same tools as CI's lint / format /
+# typecheck steps (format and lint on the staged files, typecheck on the whole
+# project), so a bad commit is rejected locally before reaching CI. Tests stay in
+# CI to keep the commit hook to the fast checks.
+#
+# Install: handled automatically by `bun install` via package.json `prepare`.
+# Bypass (rare, e.g. emergency revert): `git commit --no-verify`. Each job's
+# `fail_text` below also nudges contributors toward the right auto-fix.
+#
+# Note on duplication: jobs below invoke `bun x oxfmt` / `bun x oxlint`
+# directly (passing `{staged_files}` for efficiency) instead of going through
+# the `package.json` scripts (`bun run format:check` etc.), since the scripts
+# don't take file args. If you change the lint/format binaries or flags,
+# update BOTH this file and `package.json`. CI uses the scripts.
+#
+# Glob semantics: lefthook uses gobwas/glob where `*` matches across `/`.
+# So `*.ts` correctly matches `src/lib/foo.ts` — no `**/` prefix needed.
+# https://lefthook.dev/configuration/
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: format
+      glob: "*.{ts,json}"
+      run: bun x oxfmt --check {staged_files}
+      fail_text: "format check failed. Run `bun run format` to auto-fix, or `git commit --no-verify` to bypass (last resort)."
+
+    - name: lint
+      glob: "*.ts"
+      run: bun x oxlint {staged_files}
+      fail_text: "lint failed. `bun x oxlint --fix src test` fixes what it can; fix the rest by hand. `git commit --no-verify` bypasses, but please don't ship a lint error."
+
+    - name: typecheck
+      # `tsc --noEmit` walks the whole project (types cross file boundaries), so it
+      # gets no file list. It fires on a staged .ts file, or on tsconfig / dependency
+      # changes, which can break the typecheck without touching a .ts file.
+      glob: "{*.ts,tsconfig.json,package.json,bun.lock}"
+      run: bun run typecheck
+      fail_text: "typecheck failed. Run `bun run typecheck` to see the full error list. `git commit --no-verify` bypasses if it's urgent."
