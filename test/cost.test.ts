@@ -71,6 +71,28 @@ describe("callCost", () => {
     expect(callCost("claude-haiku-4-5-20251001", u({ output: 1_000_000 }))).toBe(5);
   });
 
+  test("Claude Haiku 5.5 at both tiers' prices; cache reads and writes count toward 100k", () => {
+    const M = 1_000_000;
+    // a 1h write of 200k puts the prompt over 100k on its own
+    const big = (o: Partial<ReturnType<typeof emptyUsage>>) =>
+      callCost("claude-haiku-5-5", u({ cacheRead: 200_000, ...o }))! - 200_000 * 0.05e-6;
+    expect(big({ input: M })).toBeCloseTo(0.5, 9);
+    expect(big({ cacheCreate: M })).toBeCloseTo(0.625, 9);
+    expect(big({ cacheCreate: M, cacheCreate1h: M })).toBeCloseTo(1, 9);
+    expect(big({ output: M })).toBeCloseTo(2.5, 9);
+    expect(callCost("claude-haiku-5-5", u({ cacheRead: 100_001 }))).toBeCloseTo(
+      100_001 * 0.05e-6,
+      12,
+    );
+    // up to 100k, the lower rates; output does not count toward the prompt
+    const small = (o: Partial<ReturnType<typeof emptyUsage>>) => callCost("claude-haiku-5-5", u(o));
+    expect(small({ input: 100 })).toBeCloseTo(100 * 0.1e-6, 12);
+    expect(small({ cacheCreate: 100 })).toBeCloseTo(100 * 0.125e-6, 12);
+    expect(small({ cacheCreate: 100, cacheCreate1h: 100 })).toBeCloseTo(100 * 0.2e-6, 12);
+    expect(small({ cacheRead: 100_000 })).toBeCloseTo(100_000 * 0.01e-6, 12);
+    expect(small({ output: M })).toBeCloseTo(0.5, 9);
+  });
+
   test("Claude Haiku 5.5 is priced by prompt length, over 100k at the higher rates", () => {
     expect(callCost("claude-haiku-5-5", u({ input: 100_000, output: 1_000_000 }))).toBe(0.51);
     expect(callCost("claude-haiku-5-5", u({ input: 100_001, output: 1_000_000 }))).toBeCloseTo(
@@ -127,10 +149,14 @@ beforeAll(() => {
       asst(5 as unknown as string, "f", {}),
     ].join("\n") + "\n",
   );
-  // a session whose only call ran in fast mode
+  // a session whose only call ran in fast mode, and one with only US-only inference
   writeFileSync(
     join(root, "-p", "u.jsonl"),
     asst("claude-opus-5-5", "i", { output_tokens: 3, speed: "fast" }) + "\n",
+  );
+  writeFileSync(
+    join(root, "-p", "v.jsonl"),
+    asst("claude-opus-5-5", "j", { output_tokens: 3, inference_geo: "us" }) + "\n",
   );
   // a second session with only priced calls: 1.5M output on Opus 5.5 is $30
   writeFileSync(
@@ -159,6 +185,8 @@ describe("parseSession", () => {
     expect(calls.every((c) => c.surcharge === null)).toBe(true);
     const fast = parseSession(join(root, "-p", "u.jsonl")).events.calls;
     expect(fast.map((c) => c.surcharge)).toEqual(["fast"]);
+    const us = parseSession(join(root, "-p", "v.jsonl")).events.calls;
+    expect(us.map((c) => c.surcharge)).toEqual(["us"]);
   });
 });
 
@@ -182,7 +210,11 @@ describe("--cost (CLI)", () => {
     const c = j.cost;
     // opus: 2.5M out x 20 + 1M 5m write x 5 + 2M 1h write x 8 = 71; sonnet: 1M in x 2
     expect([c.usd, c.pricedUsd]).toEqual([null, 73]);
-    expect(c.unpriced).toEqual(["claude-future-9", "claude-opus-5-5 (fast)"]);
+    expect(c.unpriced).toEqual([
+      "claude-future-9",
+      "claude-opus-5-5 (fast)",
+      "claude-opus-5-5 (us)",
+    ]);
     expect(j.cacheCreate1h).toBe(2_000_000);
     expect(c.byModel.map((g: any) => [g.model, g.calls, g.usd, g.cacheCreate5m])).toEqual([
       ["claude-opus-5-5", 4, 71, 1_000_000],
@@ -190,6 +222,7 @@ describe("--cost (CLI)", () => {
       ["(no model)", 2, 0, 0],
       ["claude-future-9", 1, null, 0],
       ["claude-opus-5-5 (fast)", 1, null, 0],
+      ["claude-opus-5-5 (us)", 1, null, 0],
     ]);
   });
 
@@ -203,7 +236,7 @@ describe("--cost (CLI)", () => {
     expect(out).toMatch(/total\s+≥ \$73\.00/);
     expect(out).toMatch(/^claude-future-9 .*\s\?$/m);
     expect(out).toContain(
-      "not priced (no list price), so the total is a lower bound: claude-future-9, claude-opus-5-5 (fast)",
+      "not priced (no list price), so the total is a lower bound: claude-future-9, claude-opus-5-5 (fast), claude-opus-5-5 (us)",
     );
   });
 
@@ -223,6 +256,7 @@ describe("--cost (CLI)", () => {
       s: null,
       t: 30,
       u: null,
+      v: null,
     });
   });
 });

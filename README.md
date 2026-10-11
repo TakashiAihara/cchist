@@ -361,8 +361,9 @@ cache writes, USD) and `stats --cost` a USD column, at the list API prices in
 are list prices: a subscription does not bill per token, and Bedrock / Vertex ids
 are not in the table because those providers set their own prices. A call that
 cannot be priced shows `?` and is named under the table, and the total is then
-shown as a lower bound (`≥ $…`; `cost.usd` is null in `--json`, `cost.pricedUsd`
-has the sum): a model missing from the table, and fast-mode or US-only calls,
+shown as a lower bound by `tokens` (`≥ $…`; `cost.usd` is null in `--json`,
+`cost.pricedUsd` sums the models with no such call) and as `?` by `stats`: a model
+missing from the table, and fast-mode or US-only calls,
 which are billed above the list price. Web search / fetch fees and the refused
 first iteration of a fallback call are not priced.
 

@@ -65,6 +65,7 @@ export function callCost(
     u.cacheCreate1h * write1h +
     u.cacheRead * read +
     u.output * output;
-  // a non-numeric count in a hand-edited or foreign transcript is not a price
+  // a count that is not a number at all (a hand-edited or foreign transcript) gives
+  // NaN, which is no price
   return Number.isFinite(tokens) ? tokens / 1e6 : null;
 }
