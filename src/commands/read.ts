@@ -3,7 +3,7 @@ import { resolveSessionFile } from "../lib/discover";
 import { invalidInput, notFound } from "../lib/errors";
 import { messagesFromRecords, msgLabel, approxTokens, type Msg } from "../lib/messages";
 import { parseRange, inAnyRange, type Range } from "../lib/ranges";
-import { json, fmtTs } from "../lib/format";
+import { json, fmtTs, clip, clipValues, dropped } from "../lib/format";
 
 type Opts = {
   json?: boolean;
@@ -14,14 +14,6 @@ type Opts = {
   thinking?: boolean;
   truncate?: string;
 };
-
-/** `s` cut to `n` code points with the count of what was dropped, so a cut is never silent. */
-export function clip(s: string, n: number | null): string {
-  if (n == null) return s;
-  const cps = Array.from(s);
-  if (cps.length <= n) return s;
-  return `${cps.slice(0, n).join("")}… (+${cps.length - n} chars)`;
-}
 
 /** Render one message to a string honoring the include flags. */
 function renderMsg(m: Msg, opts: Opts, cut: number | null): string {
@@ -37,7 +29,7 @@ function renderMsg(m: Msg, opts: Opts, cut: number | null): string {
   if (m.text) parts.push(m.text);
   if (opts.thinking) for (const t of m.thinking) parts.push(`~ thinking\n${t}`);
   if (opts.tools) {
-    for (const t of m.tools) parts.push(`⚙ ${t.name} ${clip(JSON.stringify(t.input), cut)}`);
+    for (const t of m.tools) parts.push(`⚙ ${t.name} ${JSON.stringify(clipValues(t.input, cut))}`);
   }
   return parts.join("\n");
 }
@@ -54,9 +46,14 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
     }
     ranges.push(r);
   }
-  const cut = opts.truncate === undefined ? null : Number(opts.truncate);
-  if (cut !== null && !(Number.isInteger(cut) && cut > 0)) {
+  if (opts.truncate !== undefined && !/^[1-9]\d*$/.test(opts.truncate)) {
     throw invalidInput(`invalid --truncate: ${opts.truncate} (use a positive integer)`);
+  }
+  const cut = opts.truncate === undefined ? null : Number(opts.truncate);
+  if (cut !== null && !opts.tools && !opts.toolResults) {
+    console.error(
+      "cchist: --truncate only cuts tool calls and results; add --tools or --tool-results",
+    );
   }
 
   const file = resolveSessionFile(idOrLatest);
@@ -74,8 +71,12 @@ export function read(idOrLatest: string, rangeArgs: string[], opts: Opts): void 
         role: m.role,
         ts: m.ts,
         text: m.isToolResult ? clip(m.text, cut) : m.text,
+        // the cut is also given as a number so a program need not parse the marker
+        ...(m.isToolResult && dropped(m.text, cut) ? { truncated: dropped(m.text, cut) } : {}),
         ...(opts.thinking ? { thinking: m.thinking } : {}),
-        ...(opts.tools ? { tools: m.tools } : {}),
+        ...(opts.tools
+          ? { tools: m.tools.map((t) => ({ name: t.name, input: clipValues(t.input, cut) })) }
+          : {}),
         isToolResult: m.isToolResult,
         queued: m.queued != null,
       })),

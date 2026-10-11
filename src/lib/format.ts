@@ -35,6 +35,29 @@ export function fmtTs(ts: string | null | undefined, seconds = false): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${time}${zone}`;
 }
 
+/** `s` cut to `n` code points with the count dropped appended, so a cut is never silent. */
+export function clip(s: string, n: number | null): string {
+  const d = dropped(s, n);
+  return d ? `${Array.from(s).slice(0, n!).join("")}… (+${d} chars)` : s;
+}
+
+/** Code points `clip` drops from `s` (0 when nothing is cut). */
+export function dropped(s: string, n: number | null): number {
+  if (n == null || s.length <= n) return 0;
+  return Math.max(Array.from(s).length - n, 0);
+}
+
+/** A JSON value with every string inside it clipped, so the result stays valid JSON. */
+export function clipValues(v: unknown, n: number | null): unknown {
+  if (n == null) return v;
+  if (typeof v === "string") return clip(v, n);
+  if (Array.isArray(v)) return v.map((x) => clipValues(x, n));
+  if (v && typeof v === "object") {
+    return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clipValues(x, n)]));
+  }
+  return v;
+}
+
 /** Truncate a string to n code points with an ellipsis from the left or right. */
 export function trunc(s: string, n: number, from: "left" | "right" = "right"): string {
   // a code point is at least one UTF-16 unit, so a string that short cannot exceed n

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { clip } from "../src/commands/read";
+import { clip, clipValues } from "../src/lib/format";
 
 describe("clip", () => {
   test("leaves short text alone", () => {
@@ -16,21 +16,32 @@ describe("clip", () => {
   test("null means no cut", () => {
     expect(clip("x".repeat(50), null)).toBe("x".repeat(50));
   });
+
+  test("clipValues cuts every string inside a JSON value and nothing else", () => {
+    expect(clipValues({ a: "xxxxx", b: [1, "yyyyy"], c: { d: true } }, 2)).toEqual({
+      a: "xx… (+3 chars)",
+      b: [1, "yy… (+3 chars)"],
+      c: { d: true },
+    });
+  });
 });
 
 describe("read --truncate", () => {
   let root: string;
   const file = () => join(root, "-p", "s.jsonl");
 
-  async function cli(args: string[]): Promise<{ code: number; stdout: string }> {
+  async function cli(args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
     const proc = Bun.spawn(["bun", "run", "src/index.ts", ...args], {
       cwd: join(import.meta.dir, ".."),
       env: { ...process.env, CCHIST_PROJECTS_DIR: root, CCHIST_CONFIG: join(root, "none.json") },
       stdout: "pipe",
       stderr: "pipe",
     });
-    const stdout = await new Response(proc.stdout).text();
-    return { code: await proc.exited, stdout };
+    const [stdout, stderr] = await Promise.all([
+      new Response(proc.stdout).text(),
+      new Response(proc.stderr).text(),
+    ]);
+    return { code: await proc.exited, stdout, stderr };
   }
 
   beforeAll(() => {
@@ -43,7 +54,10 @@ describe("read --truncate", () => {
           type: "assistant",
           timestamp: "2026-06-01T00:00:00Z",
           message: {
-            content: [{ type: "tool_use", name: "Bash", input: { command: "y".repeat(40) } }],
+            content: [
+              { type: "text", text: "p".repeat(20) },
+              { type: "tool_use", name: "Bash", input: { command: "y".repeat(40) } },
+            ],
           },
         },
         {
@@ -64,14 +78,34 @@ describe("read --truncate", () => {
   test("cuts tool inputs and tool results, keeping a marker", async () => {
     const r = await cli(["read", file(), "--tools", "--tool-results", "--truncate", "10"]);
     expect(r.code).toBe(0);
-    expect(r.stdout).toContain('⚙ Bash {"command"… (+44 chars)');
+    expect(r.stdout).toContain('⚙ Bash {"command":"yyyyyyyyyy… (+30 chars)"}');
     expect(r.stdout).toContain("rrrrrrrrrr… (+24 chars)");
     expect(r.stdout).not.toContain("TAIL");
   });
 
-  test("--json cuts tool result text the same way", async () => {
-    const r = await cli(["read", file(), "--tool-results", "--truncate", "10", "--json"]);
-    expect(JSON.parse(r.stdout)[1].text).toBe("rrrrrrrrrr… (+24 chars)");
+  test("--json cuts tool results and the strings in tool inputs, and leaves prose alone", async () => {
+    const r = await cli([
+      "read",
+      file(),
+      "--tools",
+      "--tool-results",
+      "--truncate",
+      "10",
+      "--json",
+    ]);
+    const rows = JSON.parse(r.stdout);
+    expect(rows[0].tools).toEqual([
+      { name: "Bash", input: { command: "yyyyyyyyyy… (+30 chars)" } },
+    ]);
+    expect(rows[0].text).toBe("p".repeat(20));
+    expect(rows[1].text).toBe("rrrrrrrrrr… (+24 chars)");
+    expect(rows[1].truncated).toBe(24);
+  });
+
+  test("without --tools or --tool-results it warns that nothing is cut", async () => {
+    const r = await cli(["read", file(), "--truncate", "10"]);
+    expect(r.code).toBe(0);
+    expect(r.stderr).toContain("--truncate only cuts tool calls and results");
   });
 
   test("without --truncate everything is shown", async () => {
@@ -79,7 +113,11 @@ describe("read --truncate", () => {
     expect(r.stdout).toContain("r".repeat(30) + "TAIL");
   });
 
-  for (const bad of ["0", "-3", "1.5", "x"]) {
+  test("an invalid --truncate exits 3 before the session is looked up", async () => {
+    expect((await cli(["read", "no-such-session", "--truncate", "x"])).code).toBe(3);
+  });
+
+  for (const bad of ["0", "-3", "1.5", "x", "1e2", "0x10", " 5"]) {
     test(`--truncate ${bad} exits 3`, async () => {
       expect((await cli(["read", file(), "--truncate", bad])).code).toBe(3);
     });
