@@ -98,6 +98,6 @@ export function msgSummary(m: Msg, width = 90): string {
   if (!s && m.tools.length) s = "⚙ " + m.tools.map((t) => t.name).join(", ");
   if (!s && m.isToolResult) s = "(tool result)";
   if (!s) s = "(empty)";
-  // trunc cuts on code point boundaries, so the width never splits an emoji
+  // trunc cuts on code point boundaries, so the width never splits a surrogate pair
   return trunc(s, width);
 }

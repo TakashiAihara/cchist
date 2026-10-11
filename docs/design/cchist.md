@@ -47,7 +47,7 @@ cchist read <id|latest> [m3..m7 ...] [--tools] [--thinking] [--tool-results] [--
 cchist stats  [--by session|day|repo|model] [--since D] [--local] [--json]
 cchist tokens [--since D] [--local] [--json]
 cchist tools  [--expand-skills] [--since D] [--local] [--json]
-cchist bash   [--top N] [--full] [--since D] [--local] [--json]   # Bash コマンド頻度 (先頭語)
+cchist bash   [--top N] [--full] [--since D] [--local] [--json]   # Bash コマンド頻度 (先頭語。--full はコマンド全体)
 cchist files  [--top N] [--since D] [--local] [--json]            # 編集ファイルランキング
 cchist activity [--since D] [--local] [--json]                    # active 時間 + 時間帯ヒストグラム
 cchist commands [--top N] [--skills-only] [--source slash|tool|all] [--since D] [--local] [--json]   # slash command / Skill tool 利用頻度
