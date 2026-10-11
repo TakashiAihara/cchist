@@ -130,6 +130,10 @@ describe("oneLine", () => {
   });
 
   test("leaves ordinary text alone", () => {
-    expect(oneLine("git status 🌈")).toBe("git status 🌈");
+    expect(oneLine("git status 🌈 日本語")).toBe("git status 🌈 日本語");
+  });
+
+  test("covers C1 controls, Unicode line separators and bidi overrides", () => {
+    expect(oneLine("a\u0085b\u009bc\u2028d\u2029e\u202ef\u2066g")).toBe("a�b�c⏎d⏎e�f�g");
   });
 });

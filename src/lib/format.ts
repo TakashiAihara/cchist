@@ -59,14 +59,16 @@ export function clipValues(v: unknown, n: number | null): unknown {
 }
 
 /**
- * `s` on one table row: line breaks become ⏎, tabs ⇥, and other control
- * characters (escape sequences included) �, so a cell can neither break the row
- * nor drive the terminal.
+ * `s` on one table row: line breaks (including U+2028/U+2029) become ⏎, tabs ⇥,
+ * and other control characters (C0, DEL, C1, escape sequences) and bidi
+ * overrides �, so a cell can neither break the row, reorder it, nor drive the terminal.
  */
 export function oneLine(s: string): string {
-  return Array.from(s.replace(/\r\n|\r|\n/g, "⏎").replaceAll("\t", "⇥"), (ch) => {
+  return Array.from(s.replace(/\r\n|[\r\n\u2028\u2029]/g, "⏎").replaceAll("\t", "⇥"), (ch) => {
     const c = ch.codePointAt(0)!;
-    return c < 0x20 || c === 0x7f ? "�" : ch;
+    const control = c < 0x20 || (c >= 0x7f && c <= 0x9f);
+    const bidi = (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069);
+    return control || bidi ? "�" : ch;
   }).join("");
 }
 

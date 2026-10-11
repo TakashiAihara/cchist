@@ -1,7 +1,7 @@
 import { basename } from "node:path";
 import { iterFiltered, namedSession } from "../lib/records";
 import { invalidInput, notFound } from "../lib/errors";
-import { table, trunc, json, fmtTs } from "../lib/format";
+import { table, trunc, json, fmtTs, oneLine } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
 type Opts = CommonFilter & {
@@ -169,7 +169,7 @@ export function search(query: string, opts: Opts): void {
       console.log(`\n\x1b[1m${g.id}\x1b[0m  ${g.count} hit${g.count > 1 ? "s" : ""}`);
       for (const h of g.hits.slice(0, hitsPer)) {
         const ts = fmtTs(h.ts);
-        console.log(`  ${ts}  ${h.role}  ${trunc(h.excerpt, 90)}`);
+        console.log(`  ${ts}  ${h.role}  ${trunc(oneLine(h.excerpt), 90)}`);
       }
     }
     return;
@@ -190,7 +190,7 @@ export function search(query: string, opts: Opts): void {
   console.log(
     table(
       ["session", "when", "role", "match"],
-      hits.map((h) => [h.id, fmtTs(h.ts), h.role, trunc(h.excerpt, 90)]),
+      hits.map((h) => [h.id, fmtTs(h.ts), h.role, trunc(oneLine(h.excerpt), 90)]),
     ),
   );
 }
