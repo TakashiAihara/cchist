@@ -90,3 +90,9 @@ describe("iterFiltered", () => {
     expect(r.map((x) => x.cwd)).toEqual(["/repo/b"]);
   });
 });
+
+describe("iterFiltered validation", () => {
+  test("an invalid --since throws at the call, before iteration starts", () => {
+    expect(() => iterFiltered({ since: "not-a-date" })).toThrow(/invalid --since/);
+  });
+});

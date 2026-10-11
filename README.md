@@ -62,6 +62,7 @@ prebuilt binaries do not.
 cchist sessions latest                 # bare session id of the most recent session
 cchist sessions latest --local         # ...restricted to sessions in the current cwd
 cchist sessions latest --json          # full SessionMeta as JSON
+cchist sessions latest --since 2026-06-01   # ...most recent session active on/after the date
 
 cchist sessions list --local --limit 10
 cchist show <id|latest> [--tools] [--thinking] [--json]

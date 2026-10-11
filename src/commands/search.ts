@@ -1,6 +1,7 @@
 import { basename } from "node:path";
 import { iterFiltered, readRecords } from "../lib/records";
 import { resolveSessionFile } from "../lib/discover";
+import { parseSince } from "../lib/filter";
 import { notFound } from "../lib/errors";
 import { table, trunc, json } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
@@ -125,6 +126,8 @@ export function search(query: string, opts: Opts): void {
   // scope: one session (--session) or every session passing the filters
   let sources: Iterable<{ file: string; recs: any[] }>;
   if (opts.session) {
+    // --session skips iterFiltered, which is where --since is otherwise validated
+    parseSince(opts.since);
     const file = resolveSessionFile(opts.session);
     if (!file) {
       throw notFound(`session not found: ${opts.session}`);
