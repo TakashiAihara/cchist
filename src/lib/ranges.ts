@@ -1,4 +1,5 @@
-export type Range = { start: number; end: number };
+// `q` is set for a single queued message (`m3.q1`): index `start`, queued number `q`
+export type Range = { start: number; end: number; q?: number };
 
 /**
  * Parse a message-range token into inclusive {start, end}. Accepts a single
@@ -7,6 +8,12 @@ export type Range = { start: number; end: number };
  * malformed.
  */
 export function parseRange(token: string): Range | null {
+  const queued = /^m?(\d+)\.q(\d+)$/i.exec(token.trim());
+  if (queued) {
+    const n = Number(queued[1]);
+    const q = Number(queued[2]);
+    return q > 0 ? { start: n, end: n, q } : null;
+  }
   const t = token.trim().replace(/m/gi, "");
   const parts = t.split("..");
   if (parts.some((p) => p === "")) return null;
@@ -26,7 +33,10 @@ export function parseRange(token: string): Range | null {
 }
 
 /** True if index n falls in any of the ranges. Empty ranges -> matches all. */
-export function inAnyRange(n: number, ranges: Range[]): boolean {
+export function inAnyRange(n: number, ranges: Range[], queued: number | null = null): boolean {
   if (ranges.length === 0) return true;
-  return ranges.some((r) => n >= r.start && n <= r.end);
+  // a plain range also takes the queued messages after each of its messages
+  return ranges.some((r) =>
+    r.q !== undefined ? n === r.start && queued === r.q : n >= r.start && n <= r.end,
+  );
 }

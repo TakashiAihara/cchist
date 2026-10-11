@@ -1,7 +1,7 @@
 import { readRecords } from "../lib/records";
 import { resolveSessionFile } from "../lib/discover";
 import { notFound } from "../lib/errors";
-import { messagesFromRecords, msgSummary, approxTokens, type Msg } from "../lib/messages";
+import { messagesFromRecords, msgLabel, msgSummary, approxTokens, type Msg } from "../lib/messages";
 import { json, fmtTs } from "../lib/format";
 
 // commander maps --no-budget to budget === false; --budget <n> gives a string
@@ -19,8 +19,9 @@ export function outline(idOrLatest: string, opts: Opts): void {
   if (opts.json) {
     return json(
       msgs.map((m) => ({
-        index: `m${m.index}`,
+        index: msgLabel(m),
         role: m.role,
+        queued: m.queued != null,
         ts: m.ts,
         tools: m.tools.map((t) => t.name),
         summary: msgSummary(m, 200),
@@ -30,12 +31,14 @@ export function outline(idOrLatest: string, opts: Opts): void {
 
   const budget = opts.budget === false ? Infinity : parseInt(String(opts.budget ?? "6000"), 10);
   let spent = 0;
-  for (const m of msgs) {
+  // count by position: a queued message shares its anchor's index
+  for (const [k, m] of msgs.entries()) {
     const ts = fmtTs(m.ts);
-    const line = `m${m.index}\t${ROLE_MARK[m.role]} ${m.role}\t${ts}\t${msgSummary(m)}`;
+    const role = m.queued != null ? `${m.role} (queued)` : m.role;
+    const line = `${msgLabel(m)}\t${ROLE_MARK[m.role]} ${role}\t${ts}\t${msgSummary(m)}`;
     spent += approxTokens(line);
     if (spent > budget) {
-      console.log(`… (${msgs.length - m.index} more messages; raise --budget or --no-budget)`);
+      console.log(`… (${msgs.length - k} more messages; raise --budget or --no-budget)`);
       break;
     }
     console.log(line);

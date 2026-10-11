@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { messagesFromRecords, approxTokens, msgSummary } from "../src/lib/messages";
+import { messagesFromRecords, approxTokens, msgLabel, msgSummary } from "../src/lib/messages";
 
 const recs = [
   {
@@ -100,5 +100,141 @@ describe("msgSummary", () => {
     const cut = msgSummary(emoji, 7);
     expect(cut).toBe("abcde🌈…");
     expect(LONE_SURROGATE.test(cut)).toBe(false);
+  });
+});
+
+describe("queued (mid-turn) user messages", () => {
+  const enqueue = (content: string | null, ts: string) => ({
+    type: "queue-operation",
+    operation: "enqueue",
+    content,
+    timestamp: ts,
+  });
+  const op = (operation: string, content?: string) => ({
+    type: "queue-operation",
+    operation,
+    ...(content ? { content } : {}),
+  });
+  const attachment = (prompt: string, ts: string, extra: Record<string, unknown> = {}) => ({
+    type: "attachment",
+    timestamp: ts,
+    attachment: { type: "queued_command", commandMode: "prompt", prompt, timestamp: ts, ...extra },
+  });
+  const human = { origin: { kind: "human" } };
+  const user = (content: string, ts: string) => ({
+    type: "user",
+    timestamp: ts,
+    message: { role: "user", content },
+  });
+  const assistant = (text: string, ts: string) => ({
+    type: "assistant",
+    timestamp: ts,
+    message: { content: [{ type: "text", text }] },
+  });
+
+  const msgs = messagesFromRecords([
+    user("start", "2026-06-01T00:00:00Z"),
+    // only in the queue (older versions): enqueued and removed, never delivered
+    enqueue("stop and fix the test", "2026-06-01T00:00:05Z"),
+    op("remove", "stop and fix the test"),
+    // enqueued, then delivered mid-turn as a human attachment: shown once, at the attachment
+    enqueue("also update README", "2026-06-01T00:00:06Z"),
+    assistant("working", "2026-06-01T00:00:07Z"),
+    attachment("also update README", "2026-06-01T00:00:08Z", human),
+    // enqueued, then dequeued as a normal user record: shown only as that record
+    enqueue("next task", "2026-06-01T00:00:09Z"),
+    user("next task", "2026-06-01T00:00:10Z"),
+    // a channel / peer prompt reaches the model the same way but was not typed
+    attachment("<channel>hi</channel>", "2026-06-01T00:00:11Z", {
+      origin: { kind: "channel" },
+      isMeta: true,
+    }),
+    attachment("[Cross-session idle notice] x", "2026-06-01T00:00:12Z", {
+      origin: { kind: "peer" },
+      isMeta: true,
+    }),
+    // an older attachment without origin falls back to the text check
+    attachment("<task-notification>x</task-notification>", "2026-06-01T00:00:13Z"),
+    attachment("<pasted_content>log</pasted_content> see this", "2026-06-01T00:00:14Z"),
+    enqueue(null, "2026-06-01T00:00:16Z"),
+    // the same text typed twice is two messages
+    enqueue("again", "2026-06-01T00:00:17Z"),
+    op("remove", "again"),
+    enqueue("again", "2026-06-01T00:00:18Z"),
+    op("remove", "again"),
+    assistant("done", "2026-06-01T00:00:19Z"),
+  ]);
+
+  test("each typed message appears once, in order, with a non-shifting address", () => {
+    expect(msgs.map((m) => [msgLabel(m), m.text, m.ts])).toEqual([
+      ["m0", "start", "2026-06-01T00:00:00Z"],
+      ["m0.q1", "stop and fix the test", "2026-06-01T00:00:05Z"],
+      ["m1", "working", "2026-06-01T00:00:07Z"],
+      ["m1.q1", "also update README", "2026-06-01T00:00:08Z"],
+      ["m2", "next task", "2026-06-01T00:00:10Z"],
+      ["m2.q1", "<pasted_content>log</pasted_content> see this", "2026-06-01T00:00:14Z"],
+      ["m2.q2", "again", "2026-06-01T00:00:17Z"],
+      ["m2.q3", "again", "2026-06-01T00:00:18Z"],
+      ["m3", "done", "2026-06-01T00:00:19Z"],
+    ]);
+  });
+
+  test("one delivery answers one enqueue; a second identical enqueue still shows", () => {
+    const m = messagesFromRecords([
+      user("go", "2026-06-01T00:00:00Z"),
+      enqueue("dup", "2026-06-01T00:00:01Z"),
+      enqueue("dup", "2026-06-01T00:00:02Z"),
+      op("remove", "dup"),
+      user("dup", "2026-06-01T00:00:03Z"),
+    ]);
+    expect(m.map((x) => [msgLabel(x), x.ts])).toEqual([
+      ["m0", "2026-06-01T00:00:00Z"],
+      ["m0.q1", "2026-06-01T00:00:02Z"],
+      ["m1", "2026-06-01T00:00:03Z"],
+    ]);
+  });
+
+  test("an origin-less cross-session notice is not something the user typed", () => {
+    const m = messagesFromRecords([
+      user("go", "2026-06-01T00:00:00Z"),
+      enqueue("[Cross-session idle notice] peer is idle", "2026-06-01T00:00:01Z"),
+    ]);
+    expect(m.map(msgLabel)).toEqual(["m0"]);
+  });
+
+  test("a draft pulled back with popAll never reached the model", () => {
+    const m = messagesFromRecords([
+      user("go", "2026-06-01T00:00:00Z"),
+      enqueue("draft I took back", "2026-06-01T00:00:01Z"),
+      op("popAll"),
+    ]);
+    expect(m.map(msgLabel)).toEqual(["m0"]);
+  });
+
+  test("a machine prompt delivered as a meta user record is not shown as typed", () => {
+    const m = messagesFromRecords([
+      user("go", "2026-06-01T00:00:00Z"),
+      enqueue("Your usage limit has reset", "2026-06-01T00:00:01Z"),
+      { type: "user", isMeta: true, message: { content: "Your usage limit has reset" } },
+    ]);
+    expect(m.map(msgLabel)).toEqual(["m0"]);
+  });
+
+  test("a blank enqueue is not a message", () => {
+    const m = messagesFromRecords([
+      user("go", "2026-06-01T00:00:00Z"),
+      enqueue("   ", "2026-06-01T00:00:01Z"),
+    ]);
+    expect(m.map(msgLabel)).toEqual(["m0"]);
+  });
+
+  test("an earlier unrelated user record with the same text does not hide a later queued one", () => {
+    const m = messagesFromRecords([
+      user("ok", "2026-06-01T00:00:00Z"),
+      assistant("a", "2026-06-01T00:00:01Z"),
+      enqueue("ok", "2026-06-01T00:00:02Z"),
+      op("remove", "ok"),
+    ]);
+    expect(m.map(msgLabel)).toEqual(["m0", "m1", "m1.q1"]);
   });
 });

@@ -246,7 +246,10 @@ program
 program
   .command("read")
   .argument("<id>", "session id (prefix ok), 'latest', or a path to a .jsonl")
-  .argument("[ranges...]", "message ranges: m3, 3, m3..m7 or 3..7 (default: all)")
+  .argument(
+    "[ranges...]",
+    "message ranges: m3, 3, m3..m7, 3..7, or m3.q1 for a queued message (default: all)",
+  )
   .description("read transcript message ranges with a token budget")
   .option("--budget <n>", "approx output token budget", "6000")
   .option("--no-budget", "disable output budgeting")
