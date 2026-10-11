@@ -6,7 +6,12 @@ import { type CommonFilter, type Usage, addUsage, emptyUsage } from "../lib/type
 
 type TokensOpts = CommonFilter & { json?: boolean; cost?: boolean };
 
-type ModelCost = { model: string; calls: number; usd: number | null } & Usage;
+type ModelCost = {
+  model: string;
+  calls: number;
+  usd: number | null;
+  cacheCreate5m: number;
+} & Usage;
 
 const usd = (n: number | null) => (n === null ? "?" : `$${n.toFixed(2)}`);
 
@@ -18,25 +23,39 @@ export function tokens(opts: TokensOpts): void {
   for (const m of kept) {
     for (const c of owned.get(m)?.calls ?? []) {
       addUsage(tot, c.usage);
-      const key = c.model ?? "?";
-      const g = byModel.get(key) ?? { model: key, calls: 0, usd: 0, ...emptyUsage() };
+      const key = !c.model ? "(no model)" : c.surcharge ? `${c.model} (${c.surcharge})` : c.model;
+      const g = byModel.get(key) ?? {
+        model: key,
+        calls: 0,
+        usd: 0,
+        cacheCreate5m: 0,
+        ...emptyUsage(),
+      };
       g.calls++;
       addUsage(g, c.usage);
-      const cost = callCost(c.model, c.usage);
-      // one unpriced call makes the model's total unknown rather than too low
-      g.usd = cost === null || g.usd === null ? null : g.usd + cost;
+      g.cacheCreate5m = g.cacheCreate - g.cacheCreate1h;
+      if (opts.cost) {
+        const cost = callCost(c.model, c.usage, c.surcharge);
+        // one unpriced call makes the model's total unknown rather than too low
+        g.usd = cost === null || g.usd === null ? null : g.usd + cost;
+      }
       byModel.set(key, g);
     }
   }
-  const models = [...byModel.values()].sort((a, b) => (b.usd ?? -1) - (a.usd ?? -1));
+  const models = [...byModel.values()].sort(
+    (a, b) => (b.usd ?? -1) - (a.usd ?? -1) || a.model.localeCompare(b.model),
+  );
   const priced = models.reduce((s, g) => s + (g.usd ?? 0), 0);
   const unpriced = models.filter((g) => g.usd === null).map((g) => g.model);
+
+  // with any model unpriced the total is a lower bound, never shown as the total
+  const total = unpriced.length ? null : priced;
 
   if (opts.json) {
     return json({
       sessions: kept.length,
       ...tot,
-      ...(opts.cost ? { cost: { usd: priced, unpriced, byModel: models } } : {}),
+      ...(opts.cost ? { cost: { usd: total, pricedUsd: priced, unpriced, byModel: models } } : {}),
     });
   }
 
@@ -67,15 +86,16 @@ export function tokens(opts: TokensOpts): void {
           fmtNum(g.input),
           fmtNum(g.output),
           fmtNum(g.cacheRead),
-          fmtNum(g.cacheCreate - g.cacheCreate1h),
+          fmtNum(g.cacheCreate5m),
           fmtNum(g.cacheCreate1h),
           usd(g.usd),
         ]),
-        ["total", "", "", "", "", "", "", usd(priced)],
+        ["total", "", "", "", "", "", "", total === null ? `≥ ${usd(priced)}` : usd(priced)],
       ],
     ),
   );
   if (unpriced.length) {
-    console.log(`\nnot priced (not in the price table): ${unpriced.map(oneLine).join(", ")}`);
+    const names = unpriced.map((m) => oneLine(m)).join(", ");
+    console.log(`\nnot priced (no list price), so the total is a lower bound: ${names}`);
   }
 }

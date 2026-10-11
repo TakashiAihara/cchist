@@ -29,7 +29,7 @@ session_id はファイル名で確定するため、集計は 1 ファイル 1 
 
 `id / file / cwd / gitBranch / version / entrypoint / title / lastPrompt /
 firstTs / lastTs / durationMs / records / userTurns / assistantMsgs /
-models[] / usage{input,output,cacheRead,cacheCreate,webSearch,webFetch} /
+models[] / usage{input,output,cacheRead,cacheCreate,cacheCreate1h,webSearch,webFetch} /
 blocks{text,thinking,toolUse} / tools{name:count} / skills{name:count}`
 
 `skills` は `Skill` tool の `input.skill` を per-skill にカウントしたもの。
@@ -44,8 +44,8 @@ cchist show <id|latest> [--tools] [--thinking] [--json]
 cchist path <id|latest> [--json]                      # session id -> 実 cwd 逆引き
 cchist outline <id|latest> [--budget N|--no-budget] [--json]   # turn-by-turn 構造マップ
 cchist read <id|latest> [m3..m7 ...] [--tools] [--thinking] [--tool-results] [--budget N|--no-budget] [--json]
-cchist stats  [--by session|day|repo|model] [--since D] [--local] [--json]
-cchist tokens [--since D] [--local] [--json]
+cchist stats  [--by session|day|repo|model] [--since D] [--local] [--cost] [--json]
+cchist tokens [--since D] [--local] [--cost] [--json]
 cchist tools  [--expand-skills] [--since D] [--local] [--json]
 cchist bash   [--top N] [--full] [--since D] [--local] [--json]   # Bash コマンド頻度 (先頭語。--full はコマンド全体)
 cchist files  [--top N] [--since D] [--local] [--json]            # 編集ファイルランキング

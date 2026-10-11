@@ -16,7 +16,12 @@ export type Usage = {
 export type Event = { key: string | null; ts: string | null };
 
 /** One API call: one response's usage, which Claude Code may split across several lines. */
-export type Call = Event & { model: string | null; usage: Usage };
+export type Call = Event & {
+  model: string | null;
+  // "fast" (fast mode) or "us" (US-only inference): billed above the list price
+  surcharge: string | null;
+  usage: Usage;
+};
 
 export type SessionEvents = {
   // keyed by `${message.id}:${requestId}`

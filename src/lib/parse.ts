@@ -77,7 +77,9 @@ export function parseSession(file: string): SessionMeta {
           : null;
       }
       // <synthetic> is the pseudo-model on injected/synthetic turns, not a real model
-      if (rec.message.model && rec.message.model !== "<synthetic>") models.add(rec.message.model);
+      const m = rec.message.model;
+      const model: string | null = typeof m === "string" && m && m !== "<synthetic>" ? m : null;
+      if (model) models.add(model);
 
       const u = rec.message.usage;
       // one response is written as one line per content block, each repeating its usage
@@ -99,9 +101,8 @@ export function parseSession(file: string): SessionMeta {
         const seen = key ? seenCalls.get(key) : undefined;
         if (seen) maxUsage(seen.usage, usage);
         else {
-          const model =
-            rec.message.model && rec.message.model !== "<synthetic>" ? rec.message.model : null;
-          const call: Call = { key, ts: rec.timestamp ?? null, model, usage };
+          const surcharge = u.speed === "fast" ? "fast" : u.inference_geo === "us" ? "us" : null;
+          const call: Call = { key, ts: rec.timestamp ?? null, model, surcharge, usage };
           meta.events.calls.push(call);
           if (key) seenCalls.set(key, call);
         }

@@ -58,7 +58,8 @@ export function stats(opts: StatsOpts): void {
     const u = emptyUsage();
     for (const c of o.calls) {
       addUsage(u, c.usage);
-      const cost = callCost(c.model, c.usage);
+      if (!opts.cost) continue;
+      const cost = callCost(c.model, c.usage, c.surcharge);
       g.cost = cost === null || g.cost === null ? null : g.cost + cost;
     }
     g.input += u.input;
