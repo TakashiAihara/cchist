@@ -24,6 +24,13 @@ Env overrides:
   Bare `0.1.0` is also accepted; the `v` prefix is added automatically.
 - `CCHIST_INSTALL_DIR=/usr/local/bin` — install into a different dir
   (default: `~/.local/bin`).
+- `CCHIST_DOWNLOAD_BASE=<url>` — fetch from a mirror laid out like
+  `https://github.com/TakashiAihara/cchist/releases` (the default).
+
+The download is checked against the `<asset>.sha256` published with each release
+(`sha256sum` or `shasum -a 256`); a mismatch installs nothing. Tags released before
+checksums existed have none: the installer warns for an explicit `CCHIST_VERSION`
+and refuses for `latest`.
 
 The installer is a POSIX `sh` script; pipe it through `cat` first if you want to
 read it before running.
