@@ -71,7 +71,7 @@ cchist outline <id|latest>             # turn-by-turn structural map of a sessio
 cchist read <id|latest> [m3..m7 ...]   # read message ranges with a token budget
 
 cchist stats  --by day|repo|model|session [--since 2026-06-01] [--local]
-cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage
+cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage (once per API call)
 cchist tools  [--since 2026-06-01] [--local]      # tool-call frequency
 cchist tools  --expand-skills                     # break Skill into Skill:<name>
 cchist bash   [--top 25] [--full]                 # most-used Bash commands
@@ -149,6 +149,15 @@ ranges (`m3`, `3`, `m3..m7`, `3..7`; default all), with `--tools` / `--thinking`
 / `--tool-results` to include those. Both budget output to ~6000 approx tokens by
 default — raise with `--budget <n>` or lift it with `--no-budget`.
 
+### `stats` / `tokens`
+
+Claude Code writes one API response as several lines (one per content block), each
+repeating the same usage. Usage is counted once per call, keyed by message id and
+request id. A resumed session copies earlier calls into its own file; those are
+counted once too, under the oldest session that holds them. `stats --by day` puts
+each call, prompt and tool call on the local date it happened (set `TZ` to change
+the zone), so a session spanning midnight shows up on both days.
+
 ### Common flags
 
 - `--local` — only sessions whose `cwd` equals the current directory
@@ -167,7 +176,7 @@ else is literal.
 # most recent session id for the repo you're standing in
 sid=$(cchist sessions latest --local)
 
-# how many tokens did I burn this month, by day?
+# how many tokens did I burn this month, by day? (local dates; set TZ to change them)
 cchist stats --by day --since 2026-06-01
 
 # which tools do I lean on?

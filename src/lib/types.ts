@@ -7,6 +7,14 @@ export type Usage = {
   webFetch: number;
 };
 
+/** One API call: the usage of one response, which Claude Code may split across several lines. */
+export type Call = {
+  // `${message.id}:${requestId}`, or null when a line lacks either (never deduped)
+  key: string | null;
+  ts: string | null;
+  usage: Usage;
+};
+
 export type SessionMeta = {
   id: string;
   file: string;
@@ -33,6 +41,11 @@ export type SessionMeta = {
   // but never reach `skills`; consumers that want totals to add up should add a
   // `Skill:?` bucket for `tools.Skill − Σ skills[*]` (as `cchist tools --expand-skills` does).
   skills: Record<string, number>;
+  // usage deduped per API call; `usage` above is their sum
+  calls: Call[];
+  // prompts and tool_use blocks per local calendar day (YYYY-MM-DD), for `stats --by day`
+  turnsByDay: Record<string, number>;
+  toolsByDay: Record<string, number>;
 };
 
 export type CommonFilter = {
@@ -45,4 +58,23 @@ export type CommonFilter = {
 
 export function emptyUsage(): Usage {
   return { input: 0, output: 0, cacheRead: 0, cacheCreate: 0, webSearch: 0, webFetch: 0 };
+}
+
+export function addUsage(into: Usage, from: Usage): Usage {
+  into.input += from.input;
+  into.output += from.output;
+  into.cacheRead += from.cacheRead;
+  into.cacheCreate += from.cacheCreate;
+  into.webSearch += from.webSearch;
+  into.webFetch += from.webFetch;
+  return into;
+}
+
+/** Local calendar date (honours TZ) of an ISO timestamp, or "?" when absent. */
+export function localDay(ts: string | null | undefined): string {
+  if (!ts) return "?";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "?";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }

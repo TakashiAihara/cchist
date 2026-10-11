@@ -1,6 +1,7 @@
 import { loadSessions } from "../lib/filter";
 import { table, fmtK, trunc, json } from "../lib/format";
-import { type CommonFilter, type SessionMeta } from "../lib/types";
+import { ownedCalls } from "../lib/usage";
+import { type Call, type CommonFilter, type SessionMeta, localDay } from "../lib/types";
 
 type StatsOpts = CommonFilter & { by?: string; json?: boolean };
 
@@ -17,8 +18,6 @@ type Group = {
 
 function keyOf(m: SessionMeta, by: string): string {
   switch (by) {
-    case "day":
-      return m.lastTs?.slice(0, 10) ?? "?";
     case "repo":
       return m.cwd ?? "?";
     case "model":
@@ -31,28 +30,60 @@ function keyOf(m: SessionMeta, by: string): string {
 export function stats(opts: StatsOpts): void {
   const by = opts.by ?? "session";
   const metas = loadSessions(opts);
+  const owned = ownedCalls(metas);
 
   const groups = new Map<string, Group>();
+  const group = (k: string): Group => {
+    let g = groups.get(k);
+    if (!g) {
+      g = {
+        key: k,
+        sessions: 0,
+        turns: 0,
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheCreate: 0,
+        tools: 0,
+      };
+      groups.set(k, g);
+    }
+    return g;
+  };
+  const addCalls = (g: Group, calls: Call[]) => {
+    for (const c of calls) {
+      g.input += c.usage.input;
+      g.output += c.usage.output;
+      g.cacheRead += c.usage.cacheRead;
+      g.cacheCreate += c.usage.cacheCreate;
+    }
+  };
+
   for (const m of metas) {
-    const k = keyOf(m, by);
-    const g = groups.get(k) ?? {
-      key: k,
-      sessions: 0,
-      turns: 0,
-      input: 0,
-      output: 0,
-      cacheRead: 0,
-      cacheCreate: 0,
-      tools: 0,
-    };
+    const calls = owned.get(m) ?? [];
+    if (by === "day") {
+      // a session spanning midnight counts on every day it was active
+      const byDay = new Map<string, Call[]>();
+      for (const c of calls) byDay.set(localDay(c.ts), [...(byDay.get(localDay(c.ts)) ?? []), c]);
+      const days = new Set([
+        ...byDay.keys(),
+        ...Object.keys(m.turnsByDay),
+        ...Object.keys(m.toolsByDay),
+      ]);
+      for (const d of days) {
+        const g = group(d);
+        g.sessions++;
+        g.turns += m.turnsByDay[d] ?? 0;
+        g.tools += m.toolsByDay[d] ?? 0;
+        addCalls(g, byDay.get(d) ?? []);
+      }
+      continue;
+    }
+    const g = group(keyOf(m, by));
     g.sessions++;
     g.turns += m.userTurns;
-    g.input += m.usage.input;
-    g.output += m.usage.output;
-    g.cacheRead += m.usage.cacheRead;
-    g.cacheCreate += m.usage.cacheCreate;
     g.tools += m.blocks.toolUse;
-    groups.set(k, g);
+    addCalls(g, calls);
   }
 
   const rows = [...groups.values()].sort((a, b) => b.output - a.output);
