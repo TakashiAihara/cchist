@@ -152,7 +152,9 @@ tool_use lacks a parseable `input.skill`, the leftover is surfaced as
 one-line summary). `read <id> [ranges...]` prints full message text for the given
 ranges (`m3`, `3`, `m3..m7`, `3..7`; default all), with `--tools` / `--thinking`
 / `--tool-results` to include those. Both budget output to ~6000 approx tokens by
-default — raise with `--budget <n>` or lift it with `--no-budget`.
+default — raise with `--budget <n>` or lift it with `--no-budget`. `read --truncate
+<n>` cuts each tool result and tool input to n characters and appends `… (+N chars)`,
+so a skim shows where something was cut and how much is left in the JSONL.
 
 ### `stats` / `tokens`
 
