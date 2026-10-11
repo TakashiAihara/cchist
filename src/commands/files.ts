@@ -27,7 +27,7 @@ export function files(opts: Opts): void {
   console.log(
     table(
       ["file", "edits"],
-      rows.map(([k, c]) => [trunc(k, 64, "left"), fmtNum(c)]),
+      rows.map(([k, c]) => [trunc(oneLine(k), 64, "left"), fmtNum(c)]),
     ),
   );
 }
