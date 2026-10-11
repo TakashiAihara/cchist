@@ -70,7 +70,7 @@ cchist show <id|latest> [--tools] [--thinking] [--json]
 cchist path <id|latest>                # resolve a session id to its real cwd
 cchist outline <id|latest>             # turn-by-turn structural map of a session
 cchist read <id|latest> [m3..m7 ...]   # read message ranges with a token budget
-cchist context <id|latest> [--window 200000]   # per-turn context size + attachments injected
+cchist context <id|latest> [--window <tokens>]  # per-turn context size + attachments injected
 
 cchist stats  --by day|repo|model|session [--since 2026-06-01] [--local]
 cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage (once per API call)
