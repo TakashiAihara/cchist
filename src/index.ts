@@ -72,7 +72,7 @@ addExclude(
 
 program
   .command("show")
-  .argument("<id>", "session id (prefix ok) or 'latest'")
+  .argument("<id>", "session id (prefix ok), 'latest', or a path to a .jsonl")
   .description("render a session transcript")
   .option("--tools", "include tool calls")
   .option("--thinking", "include thinking blocks")
@@ -81,7 +81,7 @@ program
 
 program
   .command("path")
-  .argument("<id>", "session id (prefix ok) or 'latest'")
+  .argument("<id>", "session id (prefix ok), 'latest', or a path to a .jsonl")
   .description("resolve a session id to its real cwd (path)")
   .option("--json", "id/cwd/gitBranch/file as JSON")
   .action(path);
@@ -188,7 +188,10 @@ addExclude(
     .option("--thinking", "also search assistant thinking blocks")
     .option("--context <n>", "excerpt context chars around the match", "60")
     .option("--limit <n>", "max hits", "50")
-    .option("--session <id>", "search within one session (id prefix or 'latest')")
+    .option(
+      "--session <id>",
+      "search within one session (id prefix, 'latest', or a path to a .jsonl)",
+    )
     .option("--group", "group hits by session")
     .option("--hits-per <n>", "max excerpts per session in grouped output", "2")
     .option("--local", "only sessions whose cwd === current dir")
@@ -199,7 +202,7 @@ addExclude(
 
 program
   .command("outline")
-  .argument("<id>", "session id (prefix ok) or 'latest'")
+  .argument("<id>", "session id (prefix ok), 'latest', or a path to a .jsonl")
   .description("turn-by-turn structural map of a session")
   .option("--budget <n>", "approx output token budget", "6000")
   .option("--no-budget", "disable output budgeting")
@@ -208,7 +211,7 @@ program
 
 program
   .command("read")
-  .argument("<id>", "session id (prefix ok) or 'latest'")
+  .argument("<id>", "session id (prefix ok), 'latest', or a path to a .jsonl")
   .argument("[ranges...]", "message ranges: m3, 3, m3..m7 or 3..7 (default: all)")
   .description("read transcript message ranges with a token budget")
   .option("--budget <n>", "approx output token budget", "6000")

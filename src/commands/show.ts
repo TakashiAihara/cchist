@@ -1,19 +1,9 @@
 import { readFileSync } from "node:fs";
-import { basename } from "node:path";
-import { listSessionFiles } from "../lib/discover";
+import { resolveSessionFile } from "../lib/discover";
 import { notFound } from "../lib/errors";
 import { json } from "../lib/format";
 
 type ShowOpts = { tools?: boolean; thinking?: boolean; json?: boolean };
-
-function resolveFile(idOrLatest: string): string | null {
-  const files = listSessionFiles();
-  if (idOrLatest === "latest") return files[0]?.file ?? null;
-  for (const f of files) {
-    if (basename(f.file, ".jsonl").startsWith(idOrLatest)) return f.file;
-  }
-  return null;
-}
 
 function textOf(content: unknown): string {
   if (typeof content === "string") return content;
@@ -27,7 +17,7 @@ function textOf(content: unknown): string {
 }
 
 export function show(idOrLatest: string, opts: ShowOpts): void {
-  const file = resolveFile(idOrLatest);
+  const file = resolveSessionFile(idOrLatest);
   if (!file) {
     throw notFound(`session not found: ${idOrLatest}`);
   }
