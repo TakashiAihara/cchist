@@ -122,7 +122,10 @@ addExclude(
   program
     .command("bash")
     .description("most-used Bash commands (leading word; --full for the whole command)")
-    .argument("[id]", "count one session: id (prefix ok), 'latest', or a path to a .jsonl")
+    .argument(
+      "[id]",
+      "count one session: id (prefix ok), 'latest', or a path to a .jsonl (no filters with it)",
+    )
     .option("--top <n>", "max rows", "25")
     .option(
       "--full",
@@ -191,7 +194,7 @@ addExclude(
     .option("--limit <n>", "max hits", "50")
     .option(
       "--session <id>",
-      "search within one session (id prefix, 'latest', or a path to a .jsonl)",
+      "search within one session (id prefix, 'latest', or a path to a .jsonl; no filters with it)",
     )
     .option("--group", "group hits by session")
     .option("--hits-per <n>", "max excerpts per session in grouped output", "2")

@@ -123,10 +123,10 @@ describe("CLI integration (top-level catch wiring)", () => {
     });
   }
 
-  test("invalid --since on search --session → exit 3", async () => {
-    const r = await runUnreadable(["search", "x", "--session", "latest", "--since", "not-a-date"]);
+  test("--since with search --session → exit 3 before the session is read", async () => {
+    const r = await runUnreadable(["search", "x", "--session", "latest", "--since", "2026-01-01"]);
     expect(r.code).toBe(EXIT.INVALID_INPUT);
-    expect(r.stderr).toContain("cchist: invalid --since");
+    expect(r.stderr).toContain("cchist: --since cannot be combined with a session id");
   });
 
   test("invalid --since date → exit 3 before the scan", async () => {

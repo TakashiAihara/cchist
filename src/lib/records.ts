@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { listSessionFiles } from "./discover";
+import { listSessionFiles, resolveSessionFile } from "./discover";
+import { invalidInput, notFound } from "./errors";
 import { keepSession, parseSince } from "./filter";
 import { withConfigExcludes } from "./config";
 import { type CommonFilter } from "./types";
@@ -53,4 +54,29 @@ function* scan(merged: CommonFilter, sinceT: number | null): Generator<LoadedRec
     if (!keepSession({ cwd, entrypoint, lastTs }, merged, sinceT)) continue;
     yield { file: f.file, recs, cwd, entrypoint, lastTs };
   }
+}
+
+/**
+ * The one session a user named (`bash <id>`, `search --session <id>`). The common
+ * filters choose among sessions, so combining them with a named one is rejected
+ * (exit 3) rather than silently ignored; config excludes are not applied either,
+ * since the user asked for this session by name.
+ */
+export function namedSession(id: string, opts: CommonFilter): { file: string; recs: any[] } {
+  const flags = [
+    opts.local && "--local",
+    opts.cwd && "--cwd",
+    opts.since !== undefined && "--since",
+    opts.excludeCwd?.length && "--exclude-cwd",
+    opts.excludeEntrypoint?.length && "--exclude-entrypoint",
+  ].filter(Boolean);
+  if (!id) throw invalidInput("empty session id");
+  if (flags.length) {
+    throw invalidInput(
+      `${flags.join(", ")} cannot be combined with a session id (filters pick sessions)`,
+    );
+  }
+  const file = resolveSessionFile(id);
+  if (!file) throw notFound(`session not found: ${id}`);
+  return { file, recs: readRecords(file) };
 }

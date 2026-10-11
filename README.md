@@ -75,7 +75,7 @@ cchist tokens [--since 2026-06-01] [--local]      # grand-total token usage
 cchist tools  [--since 2026-06-01] [--local]      # tool-call frequency
 cchist tools  --expand-skills                     # break Skill into Skill:<name>
 cchist bash   [--top 25] [--full]                 # most-used Bash commands
-cchist bash   <id> [--full] [--json]              # one session's Bash commands
+cchist bash   <id|latest> [--top 25] [--full]     # one session's Bash commands
 cchist bash   --full --json                       # keys are whole commands; the table shows 60 chars
 cchist files  [--top 30]                          # most-edited files
 cchist activity                                    # active time + hour histogram
@@ -94,11 +94,14 @@ Session ids are printed in full (the 36-char uuid) everywhere — `sessions list
 `stats --by session`, `search`, `search --group` — so the value on screen can be
 pasted straight into another subcommand. Nothing abbreviates them to a prefix.
 
-Anywhere an `<id>` is taken (`show`, `path`, `outline`, `read`, `search
---session`) a unique prefix works too, and the literal `latest` is the most
+Anywhere an `<id>` is taken (`show`, `path`, `outline`, `read`, `bash <id>`,
+`search --session`) a unique prefix works too, and the literal `latest` is the most
 recently modified session file. `latest` there is a plain lookup — the common
 filters are not consulted. To pick the newest session in a given scope, resolve
-it first: `cchist show "$(cchist sessions latest --local)"`.
+it first: `cchist show "$(cchist sessions latest --local)"`. `bash <id>` and
+`search --session` reject the common filters (`--local` / `--cwd` / `--since` /
+`--exclude-*`) with exit 3 instead of ignoring them, since a named session is not
+picked by filters.
 
 An `<id>` can also be a path to a `.jsonl` transcript, so a file copied from another
 host or profile can be read where it sits. Its id is then the file name without
@@ -239,7 +242,9 @@ cchist splits commands into two families that handle empty results differently:
 - **Aggregation commands** (`sessions list` / `stats` / `tokens` / `tools` /
   `bash` / `files` / `activity` / `commands`) summarize whatever the filters
   match. An empty result is a *valid* summary (the answer is "zero"), so they
-  exit 0 with an empty table. `--json` returns `[]` / `{}`.
+  exit 0 with an empty table. `--json` returns `[]` / `{}`. `bash <id>` names a
+  session first, so an unknown id exits 2; a named session with no Bash calls is
+  still a zero summary (exit 0, `{}`).
 
 `search --json` follows the target-command rule even on `--json`: it emits
 `[]` to stdout so `jq` doesn't crash, and *also* exits 2, so scripts can

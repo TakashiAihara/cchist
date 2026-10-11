@@ -193,10 +193,33 @@ describe("bash <id>", () => {
     const r = await cli(["bash", "nope-id"]);
     expect(r.code).toBe(2);
     expect(r.stderr).toContain("cchist: session not found");
+    expect(r.stdout).toBe("");
   });
 
-  test("an invalid --since is still rejected with exit 3", async () => {
-    const r = await cli(["bash", "aaaa", "--since", "not-a-date"]);
+  for (const flags of [
+    ["--since", "2026-01-01"],
+    ["--local"],
+    ["--cwd", "/repo/b"],
+    ["--exclude-cwd", "/x"],
+    ["--exclude-entrypoint", "cli"],
+  ]) {
+    test(`${flags[0]} with an id exits 3 instead of being ignored`, async () => {
+      const r = await cli(["bash", "aaaa", ...flags]);
+      expect(r.code).toBe(3);
+      expect(r.stderr).toContain(`cchist: ${flags[0]} cannot be combined with a session id`);
+      expect(r.stdout).toBe("");
+    });
+  }
+
+  test("an empty id exits 3 instead of counting every session", async () => {
+    const r = await cli(["bash", "", "--json"]);
     expect(r.code).toBe(3);
+    expect(r.stdout).toBe("");
+  });
+
+  test("a .jsonl path and latest name a session too", async () => {
+    const byPath = await cli(["bash", join(root, "-repo-b", "bbbb-2.jsonl"), "--json"]);
+    expect(JSON.parse(byPath.stdout)).toEqual({ npm: 1 });
+    expect((await cli(["bash", "latest", "--json"])).code).toBe(0);
   });
 });

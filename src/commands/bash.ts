@@ -1,7 +1,4 @@
-import { iterFiltered, readRecords } from "../lib/records";
-import { resolveSessionFile } from "../lib/discover";
-import { notFound } from "../lib/errors";
-import { parseSince } from "../lib/filter";
+import { iterFiltered, namedSession } from "../lib/records";
 import { table, fmtNum, trunc, json } from "../lib/format";
 import { type CommonFilter } from "../lib/types";
 
@@ -54,11 +51,6 @@ export function bash(id: string | undefined, opts: Opts): void {
   );
 }
 
-/** One named session (filters validated but not applied, as search --session does), or every filtered one. */
 function sources(id: string | undefined, opts: Opts): Iterable<{ recs: any[] }> {
-  if (!id) return iterFiltered(opts);
-  parseSince(opts.since);
-  const file = resolveSessionFile(id);
-  if (!file) throw notFound(`session not found: ${id}`);
-  return [{ recs: readRecords(file) }];
+  return id === undefined ? iterFiltered(opts) : [namedSession(id, opts)];
 }
