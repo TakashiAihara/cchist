@@ -60,6 +60,10 @@ addExclude(
       "only sessions active on/after this date (ISO; a bare date is local midnight)",
     )
     .option("--limit <n>", "max rows", "20")
+    .option(
+      "--api-error",
+      "only sessions whose last assistant turn is an API error (limit, expired login)",
+    )
     .option("--json", "machine-readable output"),
 ).action(sessionsList);
 

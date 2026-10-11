@@ -24,6 +24,7 @@ export function parseSession(file: string): SessionMeta {
     blocks: { text: 0, thinking: 0, toolUse: 0 },
     tools: {},
     skills: {},
+    apiError: null,
     events: { calls: [], turns: [], tools: [] },
     mtimeMs: statSync(file).mtimeMs,
   };
@@ -68,6 +69,10 @@ export function parseSession(file: string): SessionMeta {
 
     if (rec.type === "assistant" && rec.message) {
       meta.assistantMsgs++;
+      // only the last assistant record counts: a later normal reply means it went on
+      meta.apiError = rec.isApiErrorMessage
+        ? { kind: rec.error ?? "unknown", text: firstText(rec.message.content) }
+        : null;
       // <synthetic> is the pseudo-model on injected/synthetic turns, not a real model
       if (rec.message.model && rec.message.model !== "<synthetic>") models.add(rec.message.model);
 
@@ -120,4 +125,11 @@ export function parseSession(file: string): SessionMeta {
   for (const c of meta.events.calls) addUsage(meta.usage, c.usage);
   meta.models = [...models];
   return meta;
+}
+
+function firstText(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  const b = content.find((x: any) => x?.type === "text" && typeof x.text === "string");
+  return b ? b.text : "";
 }
