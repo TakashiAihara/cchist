@@ -7,13 +7,18 @@ export type Owned = { calls: Call[]; turns: Event[]; tools: Event[] };
  *
  * A resumed or forked session copies earlier records into its own file, rewriting
  * their sessionId, so nothing inside a record names the session that made it.
- * A keyed event is credited to the least recently modified file holding it: the
- * original stops being written when the copy takes over. Ownership is decided over
- * `all` sessions before any filter, so `--since` or `--cwd` cannot move a call into
- * a copy. When copies of a call disagree, each usage field takes the larger value.
+ * A keyed event is credited to the file that started earliest (first record time),
+ * then least recently modified: a copy starts when it is made, after its original.
+ * File mtime alone is not enough, since an original often keeps running after a
+ * fork. Ownership is decided over `all` sessions before any filter, so `--since` or
+ * `--cwd` cannot move a call into a copy. When copies of a call disagree, each usage
+ * field takes the larger value.
  */
 export function ownEvents(all: SessionMeta[], sinceT: number | null): Map<SessionMeta, Owned> {
-  const order = [...all].sort((a, b) => a.mtimeMs - b.mtimeMs || a.id.localeCompare(b.id));
+  const start = (m: SessionMeta) => (m.firstTs ? Date.parse(m.firstTs) : Infinity);
+  const order = [...all].sort(
+    (a, b) => start(a) - start(b) || a.mtimeMs - b.mtimeMs || a.id.localeCompare(b.id),
+  );
   const calls = new Map<string, Call>();
   const turns = new Set<string>();
   const tools = new Set<string>();

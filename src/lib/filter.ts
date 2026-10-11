@@ -5,10 +5,19 @@ import { invalidInput } from "./errors";
 import { isExcluded } from "./exclude";
 import { type SessionMeta, type CommonFilter } from "./types";
 
-/** Epoch ms for a `--since` value, or null when unset; throws on an unparseable date. */
+/**
+ * Epoch ms for a `--since` value, or null when unset; throws on an unparseable date.
+ * A bare date is local midnight, matching the local days of `stats --by day` and the
+ * local times printed elsewhere; anything with a time is read by Date.parse.
+ */
 export function parseSince(since: string | undefined): number | null {
   if (since === undefined) return null;
-  const t = Date.parse(since);
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(since);
+  const local = day && new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]));
+  // a rolled-over date (2026-02-30 → March 2) is a typo, not a day
+  const real =
+    local && local.getDate() === Number(day[3]) && local.getMonth() === Number(day[2]) - 1;
+  const t = day ? (real ? local.getTime() : NaN) : Date.parse(since);
   if (Number.isNaN(t)) {
     throw invalidInput(`invalid --since: ${since} (use an ISO date, e.g. 2026-06-01)`);
   }

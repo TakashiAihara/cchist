@@ -155,22 +155,25 @@ Claude Code writes one API response as several lines (one per content block), ea
 repeating the same usage. Usage is counted once per call, keyed by message id and
 request id. A resumed session copies earlier records into its own file; copied
 calls, prompts (by record uuid) and tool calls (by tool_use id) are counted once
-too, under the least recently modified file that holds them (the original stops
-being written when the copy takes over). That is decided over every session before
-the filters run, so `--cwd` or `--exclude-*` never moves a copy's numbers.
+too, under the file that started first (then the least recently modified one): a
+copy begins when it is made, after its original, while the original may keep
+running. That is decided over every session before the filters run, so `--cwd` or
+`--exclude-*` never moves a copy's numbers.
 
 `--since` keeps the sessions active since the date and then counts only the events
-at or after it, so `stats --by day --since 2026-06-01` starts on that day. `--by day`
+at or after it, so `stats --by day --since 2026-06-01` starts on that day. A bare
+date means local midnight (the same zone as the days). `--by day`
 puts each event on the local date it happened (set `TZ` to change the zone); its
 `sess` column counts the sessions active that day, so a session spanning midnight
-counts on both days. `sessions list` shows the output a session owns the same way;
+counts on both days. `sessions list` shows the output a session owns the same way
+(clipped to `--since` too);
 `--json` there keeps `usage` as the file's own total, copies included.
 
 ### Common flags
 
 - `--local` — only sessions whose `cwd` equals the current directory
 - `--cwd <path>` — only sessions with that `cwd`
-- `--since <date>` — only sessions active on/after the ISO date
+- `--since <date>` — only sessions active on/after the ISO date (a bare date is local midnight)
 - `--exclude-cwd <glob>` — drop sessions whose `cwd` matches the glob (repeatable)
 - `--exclude-entrypoint <val>` — drop sessions with that `entrypoint`, e.g. `sdk-cli` (repeatable)
 - `--json` — machine-readable output (otherwise a human table)

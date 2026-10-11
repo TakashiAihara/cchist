@@ -17,7 +17,7 @@ export function sessionsList(opts: ListOpts): void {
   if (opts.json) return json(metas.map(publicMeta));
 
   // out counts the calls this session owns, so a resumed session does not repeat its parent's
-  const owned = ownEvents(all, null);
+  const owned = ownEvents(all, parseSince(opts.since));
   const output = (m: SessionMeta) =>
     (owned.get(m)?.calls ?? []).reduce((s, c) => s + c.usage.output, 0);
   const rows = metas.map((m) => [

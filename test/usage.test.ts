@@ -56,6 +56,22 @@ async function cli(args: string[], env: Record<string, string> = {}): Promise<an
   return JSON.parse(out);
 }
 
+async function cliText(args: string[]): Promise<string> {
+  const proc = Bun.spawn(["bun", "run", "src/index.ts", ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+    env: {
+      ...process.env,
+      CCHIST_PROJECTS_DIR: root,
+      CCHIST_CONFIG: join(root, "none.json"),
+      CLAUDE_CONFIG_DIR: join(root, "no-profile"),
+    },
+  });
+  const out = await new Response(proc.stdout).text();
+  expect(await proc.exited).toBe(0);
+  return out;
+}
+
 const rowsBy = (rows: any[], pick: (r: any) => unknown[]) =>
   Object.fromEntries(rows.map((r) => [r.key, pick(r)]));
 
@@ -69,18 +85,19 @@ beforeAll(() => {
   // call, an unkeyed line, and a prompt
   const callB = asst({ id: "b", req: "r2", ts: "2026-06-02T00:30:00Z", u: [1, 2, 3, 4] });
   const ask = prompt("u1", "2026-06-01T23:00:00Z");
+  const callA = asst({
+    id: "a",
+    req: "r1",
+    ts: "2026-06-01T23:30:00Z",
+    u: [10, 20, 1000, 5],
+    block: { type: "tool_use", id: "toolu_1" },
+  });
   const older = join(root, "-repo-u", "older.jsonl");
   writeFileSync(
     older,
     [
       ask,
-      asst({
-        id: "a",
-        req: "r1",
-        ts: "2026-06-01T23:30:00Z",
-        u: [10, 20, 1000, 5],
-        block: { type: "tool_use", id: "toolu_1" },
-      }),
+      callA,
       asst({ id: "a", req: "r1", ts: "2026-06-01T23:30:00Z", u: [10, 20, 1000, 5] }),
       asst({ id: "a", req: "r1", ts: "2026-06-01T23:30:00Z", u: [10, 20, 1000, 5] }),
       callB,
@@ -88,13 +105,14 @@ beforeAll(() => {
     ].join("\n") + "\n",
   );
 
-  // newer (another cwd): a resume copies the prompt and call b, then adds call c
+  // newer (another cwd): a resume copies the prompt, call a's tool line and call b, then adds call c
   const newer = join(root, "-repo-v", "newer.jsonl");
   writeFileSync(
     newer,
     [
       JSON.stringify({ type: "system", timestamp: "2026-06-03T11:59:00Z", cwd: "/repo/v" }),
       ask,
+      callA,
       callB,
       asst({
         id: "c",
@@ -185,6 +203,23 @@ describe("usage across sessions", () => {
     expect(rowsBy(rows, (r) => [r.input, r.output])).toEqual({ newer: [100, 200] });
   });
 
+  test("the file that started first owns a copy even when it was written to last", () => {
+    const orig = join(scratch, "orig.jsonl");
+    const fork = join(scratch, "fork.jsonl");
+    const x = asst({ id: "x", req: "x", ts: "2026-06-01T00:00:00Z", u: [1, 0, 0, 0] });
+    const z = asst({ id: "zz", req: "zz", ts: "2026-06-01T01:00:00Z", u: [50, 0, 0, 0] });
+    const w = asst({ id: "w", req: "w", ts: "2026-06-01T02:00:00Z", u: [3, 0, 0, 0] });
+    writeFileSync(orig, [x, z].join("\n") + "\n");
+    writeFileSync(fork, [z, w].join("\n") + "\n");
+    // the original keeps running after the fork, so it is the most recently modified
+    utimesSync(orig, 1_780_100_000, 1_780_100_000);
+    utimesSync(fork, 1_780_000_000, 1_780_000_000);
+    const [mo, mf] = [parseSession(orig), parseSession(fork)];
+    const owned = ownEvents([mo, mf], null);
+    expect(owned.get(mo)?.calls.map((c) => c.usage.input)).toEqual([1, 50]);
+    expect(owned.get(mf)?.calls.map((c) => c.usage.input)).toEqual([3]);
+  });
+
   test("a copy whose usage is zeroed in the owning file takes the fuller copy's numbers", () => {
     const a = join(scratch, "own-a.jsonl");
     const b = join(scratch, "own-b.jsonl");
@@ -207,6 +242,22 @@ describe("usage across sessions", () => {
   test("--since clips calls to their own time, not their session's last time", async () => {
     const t = await cli(["tokens", "--json", "--since", "2026-06-02T00:30:30Z"]);
     expect([t.input, t.output]).toEqual([107, 200]);
+  });
+
+  test("an event exactly at --since is kept", async () => {
+    const t = await cli(["tokens", "--json", "--since", "2026-06-02T00:30:00Z"]);
+    expect([t.input, t.output]).toEqual([108, 202]);
+  });
+
+  test("sessions list shows the output each session owns, clipped like tokens", async () => {
+    const out = (await cliText(["sessions", "list"])).split("\n");
+    const row = (id: string) => out.find((l) => l.startsWith(id))?.split(/\s{2,}/)[4];
+    expect([row("older"), row("newer")]).toEqual(["22", "200"]);
+    const since = (await cliText(["sessions", "list", "--since", "2026-06-02T00:30:30Z"])).split(
+      "\n",
+    );
+    expect(since.find((l) => l.startsWith("newer"))?.split(/\s{2,}/)[4]).toBe("200");
+    expect(since.find((l) => l.startsWith("older"))?.split(/\s{2,}/)[4]).toBe("0");
   });
 
   test("stats --by day splits every event by its own UTC date under TZ=UTC", async () => {

@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { join } from "node:path";
 import { applyFilter, keepSession, parseSince } from "../src/lib/filter";
 import { AppError } from "../src/lib/errors";
 import { type SessionMeta, emptyUsage } from "../src/lib/types";
@@ -63,6 +64,22 @@ describe("parseSince", () => {
     }
     expect(caught).toBeInstanceOf(AppError);
     expect((caught as AppError).exitCode).toBe(3);
+  });
+
+  test("a bare date is local midnight", () => {
+    const r = Bun.spawnSync(
+      [
+        "bun",
+        "-e",
+        'import { parseSince } from "./src/lib/filter"; console.log(parseSince("2026-06-01"));',
+      ],
+      { cwd: join(import.meta.dir, ".."), env: { ...process.env, TZ: "Asia/Tokyo" } },
+    );
+    expect(r.stdout.toString().trim()).toBe("1780239600000");
+  });
+
+  test("a rolled-over date is a typo, not March", () => {
+    expect(() => parseSince("2026-02-30")).toThrow(/invalid --since/);
   });
 
   test("an empty --since is invalid, not unset", () => {
