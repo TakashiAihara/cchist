@@ -7,11 +7,17 @@
 # Env overrides:
 #   CCHIST_VERSION       release tag to install (default: latest, e.g. v0.2.0)
 #   CCHIST_INSTALL_DIR   directory to install into (default: $HOME/.local/bin)
+#   CCHIST_DOWNLOAD_BASE release download root (default: https://github.com/<repo>/releases)
+#
+# The binary is checked against the <asset>.sha256 published with each release.
+# A tag released before checksums existed has none: that only warns for an
+# explicit CCHIST_VERSION, and fails for `latest`.
 
 set -eu
 
 REPO="TakashiAihara/cchist"
 VERSION="${CCHIST_VERSION:-latest}"
+BASE="${CCHIST_DOWNLOAD_BASE:-https://github.com/${REPO}/releases}"
 INSTALL_DIR="${CCHIST_INSTALL_DIR:-${HOME}/.local/bin}"
 
 log()  { printf 'cchist-install: %s\n' "$*" >&2; }
@@ -51,9 +57,9 @@ asset="cchist-${os}-${arch}"
 # --- resolve URL -----------------------------------------------------------
 
 if [ "$VERSION" = "latest" ]; then
-  url="https://github.com/${REPO}/releases/latest/download/${asset}"
+  url="${BASE}/latest/download/${asset}"
 else
-  url="https://github.com/${REPO}/releases/download/${VERSION}/${asset}"
+  url="${BASE}/download/${VERSION}/${asset}"
 fi
 
 log "platform: ${os}/${arch}"
@@ -85,6 +91,29 @@ case "$header" in
     die "downloaded content looks like HTML, not a binary. URL: ${url}"
     ;;
 esac
+
+# --- verify ----------------------------------------------------------------
+
+if command -v sha256sum >/dev/null 2>&1; then
+  sha256() { sha256sum "$1" | cut -d' ' -f1; }
+elif command -v shasum >/dev/null 2>&1; then
+  sha256() { shasum -a 256 "$1" | cut -d' ' -f1; }
+else
+  die "sha256sum or shasum is required to verify the download."
+fi
+
+sumfile="${tmpdir}/${asset}.sha256"
+if curl -fsL --connect-timeout 10 --max-time 60 -o "$sumfile" "${url}.sha256"; then
+  expected=$(cut -d' ' -f1 < "$sumfile")
+  actual=$(sha256 "$tmpfile")
+  [ -n "$expected" ] && [ "$expected" = "$actual" ] \
+    || die "checksum mismatch for ${asset}: expected '${expected}', got '${actual}'. Not installed."
+  log "checksum: ok (sha256 ${actual})"
+elif [ "$VERSION" = "latest" ]; then
+  die "no checksum published at ${url}.sha256; refusing to install unverified."
+else
+  log "warning: ${VERSION} has no published checksum (released before checksums); installing unverified."
+fi
 
 chmod +x "$tmpfile"
 
