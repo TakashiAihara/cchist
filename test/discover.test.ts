@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, utimesSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, join, relative } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { listSessionFiles, projectsDirs, resolveSessionFile } from "../src/lib/discover";
 
@@ -92,7 +92,7 @@ describe("listSessionFiles", () => {
     expect(names).toEqual(["s3.jsonl", "s2.jsonl", "s1.jsonl"]);
   });
 
-  test("merges several roots by mtime and keeps a duplicate id from the first root", () => {
+  test("merges several roots by mtime and takes a duplicate id from its newest copy", () => {
     const second = mkdtempSync(join(tmpdir(), "cchist-discover2-"));
     try {
       mkdirSync(join(second, "-home-c"));
@@ -104,7 +104,7 @@ describe("listSessionFiles", () => {
       utimesSync(dup, 1_700_000_900, 1_700_000_900);
       const files = listSessionFiles([root, second]).map((f) => f.file);
       expect(files).toEqual([
-        join(root, "-home-b", "s3.jsonl"),
+        dup,
         s4,
         join(root, "-home-a", "s2.jsonl"),
         join(root, "-home-a", "s1.jsonl"),
@@ -113,13 +113,57 @@ describe("listSessionFiles", () => {
       rmSync(second, { recursive: true, force: true });
     }
   });
+
+  test("an older duplicate in a later root does not replace the first root's copy", () => {
+    const second = mkdtempSync(join(tmpdir(), "cchist-discover3-"));
+    try {
+      mkdirSync(join(second, "-home-d"));
+      const old = join(second, "-home-d", "s3.jsonl");
+      writeFileSync(old, "{}\n");
+      utimesSync(old, 1_600_000_000, 1_600_000_000);
+      const files = listSessionFiles([root, second]).map((f) => f.file);
+      expect(files).toContain(join(root, "-home-b", "s3.jsonl"));
+      expect(files).not.toContain(old);
+    } finally {
+      rmSync(second, { recursive: true, force: true });
+    }
+  });
+
+  test("one root keeps the same id under two cwd dirs", () => {
+    const one = mkdtempSync(join(tmpdir(), "cchist-discover4-"));
+    try {
+      mkdirSync(join(one, "-a"));
+      mkdirSync(join(one, "-b"));
+      writeFileSync(join(one, "-a", "same.jsonl"), "{}\n");
+      writeFileSync(join(one, "-b", "same.jsonl"), "{}\n");
+      expect(listSessionFiles([one, join(one, "missing")])).toHaveLength(2);
+    } finally {
+      rmSync(one, { recursive: true, force: true });
+    }
+  });
+
+  test("a projects root that is a plain file is skipped, not fatal", () => {
+    expect(listSessionFiles([join(root, "stray.txt"), root])).toHaveLength(3);
+  });
 });
 
 describe("resolveSessionFile", () => {
-  test("accepts a path to a .jsonl outside every root", () => {
+  test("accepts a .jsonl path without consulting the listed files", () => {
     const p = join(root, "stray-session.jsonl");
     writeFileSync(p, "{}\n");
     expect(resolveSessionFile(p, [])).toBe(p);
+  });
+
+  test("a relative .jsonl path resolves to the absolute file", () => {
+    const p = join(root, "rel-session.jsonl");
+    writeFileSync(p, "{}\n");
+    expect(resolveSessionFile(relative(process.cwd(), p), [])).toBe(p);
+  });
+
+  test("a directory named like a .jsonl is not taken as a transcript", () => {
+    const d = join(root, "dir-session.jsonl");
+    mkdirSync(d);
+    expect(resolveSessionFile(d, [])).toBeNull();
   });
 
   test("a missing .jsonl path resolves to null", () => {

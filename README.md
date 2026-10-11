@@ -99,6 +99,10 @@ recently modified session file. `latest` there is a plain lookup — the common
 filters are not consulted. To pick the newest session in a given scope, resolve
 it first: `cchist show "$(cchist sessions latest --local)"`.
 
+An `<id>` can also be a path to a `.jsonl` transcript, so a file copied from another
+host or profile can be read where it sits. Its id is then the file name without
+`.jsonl`.
+
 ### `search`
 
 Substring by default (case-insensitive); add `--regex` for a regular expression
@@ -174,10 +178,9 @@ cchist tools
 
 - `CCHIST_PROJECTS_DIR` / `CLAUDE_PROJECTS_DIR` override the projects directory
   (defaults to `~/.claude/projects`). Without an override, `$CLAUDE_CONFIG_DIR/projects`
-  is searched before `~/.claude/projects` when `CLAUDE_CONFIG_DIR` is set; a session
-  found in both is taken from `$CLAUDE_CONFIG_DIR`.
-- Commands that take a session id also accept a path to a `.jsonl` transcript, so a
-  file copied from another host can be read where it sits.
+  is scanned too when `CLAUDE_CONFIG_DIR` is set; a session found in both is taken
+  from its most recently modified copy. Only the current `CLAUDE_CONFIG_DIR` is
+  scanned, so transcripts of other profiles stay invisible unless you set it.
 - `CCHIST_CONFIG` overrides the config file path (defaults to
   `$XDG_CONFIG_HOME/cchist/config.json`, i.e. `~/.config/cchist/config.json`).
 

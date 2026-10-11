@@ -188,7 +188,7 @@ addExclude(
     .option("--thinking", "also search assistant thinking blocks")
     .option("--context <n>", "excerpt context chars around the match", "60")
     .option("--limit <n>", "max hits", "50")
-    .option("--session <id>", "search within one session (id prefix or 'latest')")
+    .option("--session <id>", "search within one session (id prefix, 'latest', or a path to a .jsonl)")
     .option("--group", "group hits by session")
     .option("--hits-per <n>", "max excerpts per session in grouped output", "2")
     .option("--local", "only sessions whose cwd === current dir")
