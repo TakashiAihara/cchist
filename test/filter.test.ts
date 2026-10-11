@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { applyFilter } from "../src/lib/filter";
+import { applyFilter, parseSince } from "../src/lib/filter";
 import { type SessionMeta, emptyUsage } from "../src/lib/types";
 
 function meta(over: Partial<SessionMeta>): SessionMeta {
@@ -37,6 +37,20 @@ const withEntry = [
   meta({ id: "obs", cwd: "/root/.claude-mem/observer-sessions", entrypoint: "sdk-cli" }),
   meta({ id: "real", cwd: "/repo/a", entrypoint: "cli" }),
 ];
+
+describe("parseSince", () => {
+  test("returns null when --since is unset", () => {
+    expect(parseSince(undefined)).toBeNull();
+  });
+
+  test("returns the epoch ms for a valid ISO date", () => {
+    expect(parseSince("2026-06-01T00:00:00Z")).toBe(1780272000000);
+  });
+
+  test("throws on an unparseable date so the CLI can exit 3", () => {
+    expect(() => parseSince("not-a-date")).toThrow(/invalid --since/);
+  });
+});
 
 describe("applyFilter", () => {
   test("returns everything with no options", () => {

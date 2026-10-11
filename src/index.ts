@@ -66,6 +66,7 @@ addExclude(
     .description("print the most recent session id (or full meta with --json)")
     .option("--local", "only sessions whose cwd === current dir")
     .option("--cwd <path>", "only sessions with this cwd")
+    .option("--since <date>", "only sessions active on/after this date (ISO)")
     .option("--json", "full session meta as JSON"),
 ).action(sessionsLatest);
 

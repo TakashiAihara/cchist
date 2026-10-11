@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { listSessionFiles } from "./discover";
+import { parseSince } from "./filter";
 import { withConfigExcludes } from "./config";
 import { isExcluded } from "./exclude";
 import { type CommonFilter } from "./types";
@@ -31,10 +32,12 @@ export type LoadedRecords = {
  * Yield each session's raw records together with the cwd/entrypoint/lastTs
  * needed for the common filters. Used by detail commands (bash/files/activity/
  * search) that need the full records, not just the aggregated SessionMeta.
+ * Being a generator, an invalid --since throws on the first next(), which is
+ * still ahead of every file read.
  */
 export function* iterFiltered(opts: CommonFilter): Generator<LoadedRecords> {
   const merged = withConfigExcludes(opts);
-  const sinceT = merged.since ? Date.parse(merged.since) : NaN;
+  const sinceT = parseSince(merged.since);
   for (const f of listSessionFiles()) {
     const recs = readRecords(f.file);
     let cwd: string | null = null;
@@ -47,7 +50,7 @@ export function* iterFiltered(opts: CommonFilter): Generator<LoadedRecords> {
     }
     if (merged.local && cwd !== process.cwd()) continue;
     if (merged.cwd && cwd !== merged.cwd) continue;
-    if (!Number.isNaN(sinceT) && !(lastTs && Date.parse(lastTs) >= sinceT)) continue;
+    if (sinceT != null && !(lastTs != null && Date.parse(lastTs) >= sinceT)) continue;
     if (isExcluded({ cwd, entrypoint }, merged)) continue;
     yield { file: f.file, recs, cwd, entrypoint, lastTs };
   }

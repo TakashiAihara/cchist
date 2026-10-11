@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { AppError, EXIT, invalidInput, notFound } from "../src/lib/errors";
 
 describe("AppError", () => {
@@ -57,10 +60,14 @@ describe("CLI integration (top-level catch wiring)", () => {
   // throw happened after a json() return short-circuit.
   const CLI = ["run", "src/index.ts"];
 
-  async function run(args: string[]): Promise<{ code: number; stderr: string; stdout: string }> {
+  async function run(
+    args: string[],
+    env: Record<string, string> = {},
+  ): Promise<{ code: number; stderr: string; stdout: string }> {
     const proc = Bun.spawn(["bun", ...CLI, ...args], {
       stdout: "pipe",
       stderr: "pipe",
+      env: { ...process.env, ...env },
     });
     const [stdout, stderr] = await Promise.all([
       new Response(proc.stdout).text(),
@@ -68,6 +75,26 @@ describe("CLI integration (top-level catch wiring)", () => {
     ]);
     const code = await proc.exited;
     return { code, stdout, stderr };
+  }
+
+  // a regular file as projects dir makes listSessionFiles() throw (ENOTDIR), so
+  // exit 3 is only reachable when --since is rejected before listing runs
+  function unreadableProjectsDir(): { env: Record<string, string>; rm: () => void } {
+    const dir = mkdtempSync(join(tmpdir(), "cchist-errors-"));
+    const file = join(dir, "projects");
+    writeFileSync(file, "not a directory");
+    return { env: { CCHIST_PROJECTS_DIR: file }, rm: () => rmSync(dir, { recursive: true }) };
+  }
+
+  async function runUnreadable(
+    args: string[],
+  ): Promise<{ code: number; stderr: string; stdout: string }> {
+    const p = unreadableProjectsDir();
+    try {
+      return await run(args, p.env);
+    } finally {
+      p.rm();
+    }
   }
 
   test("session not found → exit 2 with cchist: prefix on stderr", async () => {
@@ -82,8 +109,20 @@ describe("CLI integration (top-level catch wiring)", () => {
     expect(r.stderr).toContain("cchist: invalid range");
   });
 
-  test("invalid --since date → exit 3", async () => {
-    const r = await run(["tokens", "--since", "not-a-date"]);
+  test("invalid --since date → exit 3 before the scan", async () => {
+    const r = await runUnreadable(["tokens", "--since", "not-a-date"]);
+    expect(r.code).toBe(EXIT.INVALID_INPUT);
+    expect(r.stderr).toContain("cchist: invalid --since");
+  });
+
+  test("invalid --since date on a records command → exit 3 before the scan", async () => {
+    const r = await runUnreadable(["bash", "--since", "not-a-date"]);
+    expect(r.code).toBe(EXIT.INVALID_INPUT);
+    expect(r.stderr).toContain("cchist: invalid --since");
+  });
+
+  test("invalid --since date on sessions latest → exit 3 before the scan", async () => {
+    const r = await runUnreadable(["sessions", "latest", "--since", "not-a-date"]);
     expect(r.code).toBe(EXIT.INVALID_INPUT);
     expect(r.stderr).toContain("cchist: invalid --since");
   });
