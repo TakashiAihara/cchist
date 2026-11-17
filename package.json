@@ -2,6 +2,7 @@
   "name": "cchist",
   "version": "0.3.0",
   "description": "Non-interactive CLI to inspect and analyze Claude Code session history (JSONL)",
+  "license": "MIT",
   "bin": {
     "cchist": "./src/index.ts"
   },
